@@ -1,0 +1,1010 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Aveir CJ Study</title>
+  <style>
+    :root {
+      --blue:      #1565c0;
+      --blue-lt:   #1976d2;
+      --blue-bg:   #e3f0fb;
+      --orange:    #e65100;
+      --orange-bg: #fff3e0;
+      --green:     #2e7d32;
+      --green-bg:  #e8f5e9;
+      --red:       #c62828;
+      --red-bg:    #ffebee;
+      --bg:        #f4f6f9;
+      --card:      #ffffff;
+      --border:    #c8d6e4;
+      --text:      #1a2633;
+      --text-sub:  #4a6070;
+      --text-ph:   #8aaabb;
+      --shadow:    0 2px 12px rgba(0,0,0,.10);
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', 'Hiragino Sans', 'Yu Gothic UI', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      font-size: 15px;
+      line-height: 1.5;
+      min-height: 100vh;
+    }
+
+    /* ─── Header ─── */
+    header {
+      background: var(--blue);
+      color: #fff;
+      padding: 14px 24px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      box-shadow: 0 2px 8px rgba(0,0,0,.2);
+      position: sticky;
+      top: 0;
+      z-index: 50;
+    }
+    header .icon {
+      font-size: 1.8rem;
+      background: rgba(255,255,255,.15);
+      border-radius: 10px;
+      width: 46px; height: 46px;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    header h1 { font-size: 1.3rem; font-weight: 700; }
+    header p  { font-size: 0.75rem; opacity: .85; margin-top: 1px; }
+
+    /* ─── Container ─── */
+    .container {
+      max-width: 700px;
+      margin: 0 auto;
+      padding: 28px 16px 80px;
+    }
+
+    /* ─── Screen ─── */
+    .screen { display: none; }
+    .screen.active { display: block; }
+
+    /* ─── Card ─── */
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 18px;
+      box-shadow: var(--shadow);
+    }
+    .card-title {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--blue);
+      border-bottom: 2px solid var(--blue-bg);
+      padding-bottom: 10px;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* ─── Welcome Buttons ─── */
+    .menu-btn {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      background: #fff;
+      border: 2px solid var(--border);
+      border-radius: 12px;
+      padding: 18px 20px;
+      cursor: pointer;
+      text-align: left;
+      margin-bottom: 12px;
+      transition: border-color .15s, box-shadow .15s, transform .1s;
+    }
+    .menu-btn:hover {
+      border-color: var(--blue-lt);
+      box-shadow: 0 4px 16px rgba(21,101,192,.12);
+      transform: translateY(-1px);
+    }
+    .menu-btn.orange:hover { border-color: var(--orange); box-shadow: 0 4px 16px rgba(230,81,0,.12); }
+    .menu-btn.green:hover  { border-color: var(--green);  box-shadow: 0 4px 16px rgba(46,125,50,.12); }
+    .mb-icon {
+      font-size: 1.6rem;
+      width: 50px; height: 50px;
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .mb-icon.blue   { background: var(--blue-bg);   }
+    .mb-icon.orange { background: var(--orange-bg);  }
+    .mb-icon.green  { background: var(--green-bg);   }
+    .mb-text h3 { font-size: 1rem; font-weight: 700; color: var(--text); margin-bottom: 2px; }
+    .mb-text p  { font-size: .8rem; color: var(--text-sub); }
+
+    /* ─── Back button ─── */
+    .back-btn {
+      background: none;
+      border: none;
+      color: var(--blue-lt);
+      font-size: .85rem;
+      cursor: pointer;
+      padding: 0;
+      margin-bottom: 14px;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-weight: 600;
+    }
+    .back-btn:hover { color: var(--blue); }
+
+    /* ─── Form elements ─── */
+    .form-group { margin-bottom: 20px; }
+
+    .form-label {
+      display: block;
+      font-size: .82rem;
+      font-weight: 700;
+      color: var(--text-sub);
+      margin-bottom: 6px;
+      letter-spacing: .3px;
+    }
+
+    .num-tag {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 22px; height: 22px;
+      background: var(--blue);
+      color: #fff;
+      border-radius: 50%;
+      font-size: .72rem;
+      font-weight: 700;
+      margin-right: 6px;
+      flex-shrink: 0;
+    }
+
+    input[type="text"],
+    input[type="number"],
+    input[type="password"],
+    select {
+      width: 100%;
+      background: #fff;
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      padding: 10px 13px;
+      font-size: 15px;
+      transition: border-color .15s, box-shadow .15s;
+      -webkit-appearance: none;
+    }
+    input::placeholder { color: var(--text-ph); }
+    input:focus, select:focus {
+      outline: none;
+      border-color: var(--blue-lt);
+      box-shadow: 0 0 0 3px rgba(25,118,210,.15);
+    }
+    select { cursor: pointer; }
+
+    /* ─── AV measurement table ─── */
+    .section-head {
+      font-size: .78rem;
+      font-weight: 700;
+      color: var(--blue);
+      background: var(--blue-bg);
+      border-radius: 6px;
+      padding: 5px 10px;
+      margin-bottom: 10px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .av-grid {
+      display: grid;
+      gap: 10px;
+    }
+    .av-grid.two-col { grid-template-columns: 1fr 1fr; }
+    .av-grid.three-col { grid-template-columns: auto 1fr 1fr; align-items: center; }
+
+    .av-col-label {
+      font-size: .78rem;
+      font-weight: 700;
+      color: var(--text-sub);
+      text-align: center;
+      padding-bottom: 4px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 4px;
+    }
+
+    .av-row-label {
+      font-size: .88rem;
+      font-weight: 700;
+      color: var(--text);
+      padding-right: 10px;
+      white-space: nowrap;
+      padding-top: 10px;
+    }
+
+    .input-unit {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+    }
+    .input-unit input { flex: 1; min-width: 0; }
+    .unit {
+      font-size: .82rem;
+      font-weight: 600;
+      color: var(--text-sub);
+      white-space: nowrap;
+      min-width: 26px;
+    }
+
+    /* ─── Section divider ─── */
+    .sec-divider {
+      border: none;
+      border-top: 2px solid var(--blue-bg);
+      margin: 22px 0;
+    }
+
+    /* ─── Alerts ─── */
+    .alert {
+      border-radius: 8px;
+      padding: 12px 15px;
+      font-size: .85rem;
+      font-weight: 600;
+      margin-bottom: 16px;
+    }
+    .alert-info    { background: var(--blue-bg);   color: #0d4080; border-left: 4px solid var(--blue-lt); }
+    .alert-success { background: var(--green-bg);  color: #1b4d1e; border-left: 4px solid var(--green); }
+    .alert-error   { background: var(--red-bg);    color: var(--red); border-left: 4px solid var(--red); display: none; }
+    .alert-error.show { display: block; }
+
+    /* ─── Buttons ─── */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: .95rem;
+      font-weight: 700;
+      padding: 11px 22px;
+      transition: all .15s;
+    }
+    .btn-blue   { background: var(--blue);   color: #fff; }
+    .btn-blue:hover   { background: #0d47a1; }
+    .btn-orange { background: var(--orange); color: #fff; }
+    .btn-orange:hover { opacity: .88; }
+    .btn-outline { background: #fff; color: var(--blue); border: 2px solid var(--blue); }
+    .btn-outline:hover { background: var(--blue-bg); }
+    .btn-gray   { background: #e8edf2; color: var(--text); }
+    .btn-gray:hover { background: #d8e0e8; }
+    .btn-full { width: 100%; padding: 13px; font-size: 1rem; }
+    .btn-row { display: flex; gap: 10px; margin-top: 24px; }
+    .btn-row .btn { flex: 1; }
+
+    /* ─── Patient list ─── */
+    .patient-card {
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      padding: 14px 18px;
+      margin-bottom: 10px;
+      cursor: pointer;
+      transition: all .15s;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #fff;
+    }
+    .patient-card:hover { border-color: var(--blue-lt); box-shadow: 0 3px 10px rgba(21,101,192,.1); }
+    .patient-card.complete { opacity: .6; cursor: default; background: var(--bg); }
+    .pat-num  { font-size: 1.4rem; font-weight: 800; color: var(--orange); margin-right: 10px; }
+    .pat-name { font-weight: 700; font-size: .95rem; }
+    .pat-sub  { font-size: .78rem; color: var(--text-sub); margin-top: 2px; }
+
+    /* ─── Badge ─── */
+    .badge {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 20px;
+      font-size: .72rem;
+      font-weight: 700;
+    }
+    .badge-done    { background: var(--green-bg); color: var(--green); }
+    .badge-pending { background: var(--orange-bg); color: var(--orange); }
+    .badge-next    { background: var(--blue-bg); color: var(--blue); font-size: .7rem; margin-top: 4px; display: block; text-align: right; }
+
+    /* ─── Timepoint steps ─── */
+    .tp-steps { display: flex; gap: 6px; margin-bottom: 18px; }
+    .tp-step {
+      flex: 1; text-align: center;
+      padding: 8px 4px; border-radius: 8px;
+      font-size: .72rem; font-weight: 700;
+      border: 1.5px solid var(--border);
+      color: var(--text-sub);
+      background: #f8fafb;
+    }
+    .tp-step.done    { border-color: var(--green);    background: var(--green-bg); color: var(--green); }
+    .tp-step.current { border-color: var(--orange);   background: var(--orange-bg); color: var(--orange); }
+
+    /* ─── Confirmation ─── */
+    .confirm-wrap { text-align: center; padding: 36px 16px; }
+    .confirm-num  {
+      font-size: 5rem; font-weight: 900;
+      color: var(--blue); line-height: 1;
+      margin-bottom: 8px;
+    }
+    .confirm-title { font-size: 1.2rem; font-weight: 700; margin-bottom: 12px; }
+    .confirm-msg   { color: var(--text-sub); font-size: .92rem; line-height: 1.8; margin-bottom: 28px; }
+
+    /* ─── Serial Lookup result ─── */
+    .lookup-result {
+      background: var(--blue-bg);
+      border: 1.5px solid var(--blue-lt);
+      border-radius: 10px;
+      padding: 18px;
+      margin-top: 16px;
+      display: none;
+    }
+    .lookup-result.show { display: block; }
+    .lr-num { font-size: 2.6rem; font-weight: 900; color: var(--blue); }
+    .tp-chips { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
+    .tp-chip {
+      font-size: .72rem; font-weight: 600;
+      padding: 3px 10px; border-radius: 12px;
+    }
+    .tp-chip.done  { background: var(--green-bg); color: var(--green); }
+    .tp-chip.empty { background: #e8ecf0; color: var(--text-sub); }
+
+    /* ─── Admin data list ─── */
+    .data-row {
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 15px;
+      margin-bottom: 10px;
+    }
+    .data-row-head { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px; }
+
+    /* ─── PIN Overlay ─── */
+    .overlay {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,.45);
+      display: none;
+      align-items: center; justify-content: center;
+      z-index: 200;
+    }
+    .overlay.show { display: flex; }
+    .pin-box {
+      background: #fff;
+      border-radius: 16px;
+      padding: 32px 28px;
+      width: 320px;
+      text-align: center;
+      box-shadow: 0 8px 40px rgba(0,0,0,.2);
+    }
+    .pin-box h3 { font-size: 1.05rem; margin-bottom: 6px; }
+    .pin-box p  { font-size: .82rem; color: var(--text-sub); margin-bottom: 18px; }
+    .pin-box input {
+      text-align: center; font-size: 1.5rem;
+      letter-spacing: 10px; margin-bottom: 14px;
+    }
+    .pin-err { color: var(--red); font-size: .8rem; font-weight: 700; margin-bottom: 10px; display: none; }
+    .pin-err.show { display: block; }
+    .pin-actions { display: flex; gap: 8px; }
+    .pin-actions .btn { flex: 1; }
+
+    /* ─── Admin footer link ─── */
+    .admin-link {
+      display: block; text-align: center;
+      margin-top: 30px; font-size: .72rem;
+      color: #c0cdd8; cursor: pointer;
+      transition: color .2s;
+      user-select: none;
+    }
+    .admin-link:hover { color: var(--text-sub); }
+
+    /* ─── Empty state ─── */
+    .empty-state {
+      text-align: center; padding: 36px 0;
+      color: var(--text-sub); font-size: .9rem;
+    }
+
+    @media (max-width: 480px) {
+      header h1 { font-size: 1.1rem; }
+      .av-grid.three-col { grid-template-columns: 56px 1fr 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- PIN Overlay -->
+<div class="overlay" id="pin-overlay">
+  <div class="pin-box">
+    <h3>🔒 管理者認証</h3>
+    <p>PINコードを入力してください</p>
+    <input type="password" id="pin-input" maxlength="8" placeholder="••••"
+           onkeydown="if(event.key==='Enter')checkPin()">
+    <div class="pin-err" id="pin-err">PINが正しくありません</div>
+    <div class="pin-actions">
+      <button class="btn btn-gray"   onclick="closePinOverlay()">キャンセル</button>
+      <button class="btn btn-blue"   onclick="checkPin()">確認</button>
+    </div>
+  </div>
+</div>
+
+<header>
+  <div class="icon">🫀</div>
+  <div>
+    <h1>Aveir CJ Study</h1>
+    <p>Aveir DR（AR2＋VR）｜ 3か月短期スタディ データ収集</p>
+  </div>
+</header>
+
+<div class="container">
+
+  <!-- ═══════════════════ WELCOME ═══════════════════ -->
+  <div id="screen-welcome" class="screen active">
+    <div class="card">
+      <div class="card-title">📋 データ入力メニュー</div>
+
+      <button class="menu-btn orange" onclick="gotoNewPatient()">
+        <div class="mb-icon orange">✚</div>
+        <div class="mb-text">
+          <h3>初回登録（新規患者）</h3>
+          <p>新たに患者を登録し、退院時データを入力します</p>
+        </div>
+      </button>
+
+      <button class="menu-btn" onclick="gotoSelectPatient()">
+        <div class="mb-icon blue">📝</div>
+        <div class="mb-text">
+          <h3>登録済みの追加データ入力</h3>
+          <p>外来時・3か月後のデータを追加入力します</p>
+        </div>
+      </button>
+
+      <button class="menu-btn green" onclick="goto('screen-serial-lookup')">
+        <div class="mb-icon green">🔍</div>
+        <div class="mb-text">
+          <h3>シリアル番号で # 確認</h3>
+          <p>デバイス SN を入力して患者番号・入力状況を確認します</p>
+        </div>
+      </button>
+    </div>
+    <div class="admin-link" onclick="openAdminPin()">● 管理者メニュー</div>
+  </div>
+
+  <!-- ═══════════════════ NEW PATIENT ═══════════════════ -->
+  <div id="screen-new-patient" class="screen">
+    <button class="back-btn" onclick="goto('screen-welcome')">◀ メニューへ戻る</button>
+    <div class="card">
+      <div class="card-title">✚ 初回登録 ─ 退院時データ</div>
+
+      <div class="alert alert-error" id="np-error"></div>
+
+      <!-- ① 病院名 -->
+      <div class="form-group">
+        <label class="form-label"><span class="num-tag">1</span>病院名</label>
+        <input type="text" id="np-hospital" placeholder="例: 東京大学附属病院">
+      </div>
+
+      <!-- ② 疾患 -->
+      <div class="form-group">
+        <label class="form-label"><span class="num-tag">2</span>疾患</label>
+        <select id="np-disease" onchange="toggleOther('np')">
+          <option value="">選択してください</option>
+          <option value="AVB">AVB（房室ブロック）</option>
+          <option value="SSS">SSS（洞不全症候群）</option>
+          <option value="TAVI後AVB">TAVI後AVB</option>
+          <option value="other">Other（下記に記入）</option>
+        </select>
+        <div id="np-other-wrap" style="display:none; margin-top:8px;">
+          <input type="text" id="np-disease-other" placeholder="疾患名を入力してください">
+        </div>
+      </div>
+
+      <!-- ③ MODE -->
+      <div class="form-group">
+        <label class="form-label"><span class="num-tag">3</span>MODE</label>
+        <select id="np-mode">
+          <option value="">選択してください</option>
+          <option value="AAI+VVI">AAI＋VVI</option>
+          <option value="DDD">DDD</option>
+        </select>
+      </div>
+
+      <!-- Device Serial -->
+      <div class="form-group">
+        <label class="form-label">デバイスシリアル番号</label>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+          <div>
+            <div style="font-size:.78rem; font-weight:700; color:var(--blue); margin-bottom:5px;">Aveir AR（心房側）</div>
+            <div class="input-unit">
+              <span class="unit" style="min-width:28px; font-weight:700;">SN</span>
+              <input type="text" id="np-sn-ar" placeholder="例: 2287168">
+            </div>
+          </div>
+          <div>
+            <div style="font-size:.78rem; font-weight:700; color:var(--blue); margin-bottom:5px;">Aveir VR（心室側）</div>
+            <div class="input-unit">
+              <span class="unit" style="min-width:28px; font-weight:700;">SN</span>
+              <input type="text" id="np-sn-vr" placeholder="例: 2729304">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <hr class="sec-divider">
+      <div id="np-measure-fields"></div>
+
+      <div class="btn-row">
+        <button class="btn btn-orange btn-full" onclick="submitNewPatient()">
+          📤 退院時データを登録する
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════ SELECT PATIENT ═══════════════════ -->
+  <div id="screen-select-patient" class="screen">
+    <button class="back-btn" onclick="goto('screen-welcome')">◀ メニューへ戻る</button>
+    <div class="card">
+      <div class="card-title">📝 追加データ入力 ─ 患者選択</div>
+      <div id="patient-select-list"></div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════ ADD DATA ═══════════════════ -->
+  <div id="screen-add-data" class="screen">
+    <button class="back-btn" onclick="goto('screen-select-patient')">◀ 患者選択へ戻る</button>
+    <div class="card">
+      <div class="card-title" id="add-data-title">追加データ入力</div>
+      <div class="tp-steps" id="tp-steps-indicator"></div>
+      <div id="add-data-info"></div>
+      <div class="alert alert-error" id="add-error"></div>
+      <div id="add-data-fields"></div>
+      <div class="btn-row">
+        <button class="btn btn-blue btn-full" onclick="submitAddData()">📤 データを登録する</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════ SERIAL LOOKUP ═══════════════════ -->
+  <div id="screen-serial-lookup" class="screen">
+    <button class="back-btn" onclick="goto('screen-welcome')">◀ メニューへ戻る</button>
+    <div class="card">
+      <div class="card-title">🔍 シリアル番号で # 確認</div>
+      <div class="form-group">
+        <label class="form-label">デバイスシリアル番号（AR・VR どちらでも可）</label>
+        <div style="display:flex; gap:10px;">
+          <input type="text" id="lookup-sn" placeholder="例: 2287168" style="flex:1;"
+                 onkeydown="if(event.key==='Enter')doLookup()">
+          <button class="btn btn-blue" onclick="doLookup()" style="flex-shrink:0; white-space:nowrap;">照合する</button>
+        </div>
+      </div>
+      <div class="alert alert-error" id="lookup-error"></div>
+      <div class="lookup-result" id="lookup-result">
+        <div style="display:flex; align-items:baseline; gap:12px; margin-bottom:4px;">
+          <div class="lr-num" id="lr-num">#1</div>
+          <div style="font-size:1.1rem; font-weight:700;" id="lr-hospital"></div>
+        </div>
+        <div style="font-size:.83rem; color:var(--text-sub);" id="lr-sub"></div>
+        <div class="tp-chips" id="lr-chips"></div>
+        <div style="margin-top:12px; font-size:.88rem; font-weight:700;" id="lr-next"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════ CONFIRMATION ═══════════════════ -->
+  <div id="screen-confirmation" class="screen">
+    <div class="card">
+      <div class="confirm-wrap">
+        <div class="confirm-num"  id="conf-id">#1</div>
+        <div class="confirm-title" id="conf-title"></div>
+        <div class="confirm-msg"   id="conf-msg"></div>
+        <button class="btn btn-blue" style="padding:13px 40px; font-size:1rem;" onclick="goto('screen-welcome')">
+          メニューへ戻る
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════ ADMIN DATA LIST ═══════════════════ -->
+  <div id="screen-data-list" class="screen">
+    <button class="back-btn" onclick="goto('screen-welcome')">◀ メニューへ戻る</button>
+    <div class="card">
+      <div class="card-title">🗂 全登録データ一覧（管理者）</div>
+      <div id="data-list-content"></div>
+    </div>
+  </div>
+
+</div><!-- /container -->
+
+<script>
+// ═══════════════════════════════════════════════════
+//  ★ PINをここで変更できます
+// ═══════════════════════════════════════════════════
+const ADMIN_PIN = '1234';
+
+// ═══════════════════════════════════════════════════
+//  Storage
+// ═══════════════════════════════════════════════════
+const KEY = 'aveir_cj_v3';
+const loadDB = () => { try { return JSON.parse(localStorage.getItem(KEY)) || {patients:[]}; } catch { return {patients:[]}; } };
+const saveDB = db => localStorage.setItem(KEY, JSON.stringify(db));
+
+// ═══════════════════════════════════════════════════
+//  Navigation
+// ═══════════════════════════════════════════════════
+function goto(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  window.scrollTo(0,0);
+}
+function gotoNewPatient() {
+  buildMeasureFields('np-measure-fields', false);
+  hideErr('np-error');
+  // reset form
+  ['np-hospital','np-sn-ar','np-sn-vr'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
+  ['np-disease','np-mode'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
+  const ow = document.getElementById('np-other-wrap');
+  if (ow) ow.style.display='none';
+  goto('screen-new-patient');
+}
+function gotoSelectPatient() {
+  renderPatientSelectList();
+  goto('screen-select-patient');
+}
+
+// ═══════════════════════════════════════════════════
+//  Error helpers
+// ═══════════════════════════════════════════════════
+function showErr(id, msg) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.textContent = '⚠ ' + msg;
+  el.classList.add('show');
+  el.scrollIntoView({behavior:'smooth', block:'nearest'});
+}
+function hideErr(id) {
+  const el = document.getElementById(id);
+  if (el) { el.textContent=''; el.classList.remove('show'); }
+}
+
+// ═══════════════════════════════════════════════════
+//  Disease "Other" toggle
+// ═══════════════════════════════════════════════════
+function toggleOther(prefix) {
+  const val = document.getElementById(prefix+'-disease').value;
+  document.getElementById(prefix+'-other-wrap').style.display = val==='other' ? 'block' : 'none';
+}
+
+// ═══════════════════════════════════════════════════
+//  Build measurement fields
+// ═══════════════════════════════════════════════════
+function buildMeasureFields(containerId, inclBat) {
+  const el = document.getElementById(containerId);
+  if (!el) return;
+
+  const selOpts = [1,2,3,4,5,6,7].map(n=>`<option value="${n}">${n}</option>`).join('');
+
+  el.innerHTML = `
+    <!-- i2i -->
+    <div class="form-group">
+      <div class="section-head"><span class="num-tag">4</span>i2i 設定レベル（1〜7）</div>
+      <div class="av-grid three-col">
+        <div></div>
+        <div class="av-col-label">心房（A）</div>
+        <div class="av-col-label">心室（V）</div>
+        <div class="av-row-label">i2i レベル</div>
+        <select id="m-i2i-a" style="text-align:center;">${selOpts}</select>
+        <select id="m-i2i-v" style="text-align:center;">${selOpts}</select>
+      </div>
+    </div>
+
+    <!-- Throughput -->
+    <div class="form-group">
+      <div class="section-head"><span class="num-tag">5</span>i2i スループット（%）</div>
+      <div class="av-grid three-col">
+        <div></div>
+        <div class="av-col-label">A2V</div>
+        <div class="av-col-label">V2A</div>
+        <div class="av-row-label">スループット</div>
+        <div class="input-unit"><input type="number" id="m-tp-a2v" min="1" max="100" step="1" placeholder="80"><span class="unit">%</span></div>
+        <div class="input-unit"><input type="number" id="m-tp-v2a" min="1" max="100" step="1" placeholder="90"><span class="unit">%</span></div>
+      </div>
+    </div>
+
+    <!-- Threshold -->
+    <div class="form-group">
+      <div class="section-head"><span class="num-tag">6</span>閾値データ（Capture Threshold）</div>
+      <div class="av-grid three-col" style="grid-template-columns: auto 1fr 1fr;">
+        <div></div>
+        <div class="av-col-label">電圧（V）</div>
+        <div class="av-col-label">パルス幅（ms）</div>
+        <div class="av-row-label">心房（A）</div>
+        <div class="input-unit"><input type="number" id="m-thr-av"  min="0" max="10" step="0.1" placeholder="1.5"><span class="unit">V</span></div>
+        <div class="input-unit"><input type="number" id="m-thr-ams" min="0" max="2"  step="0.1" placeholder="0.4"><span class="unit">ms</span></div>
+        <div class="av-row-label">心室（V）</div>
+        <div class="input-unit"><input type="number" id="m-thr-vv"  min="0" max="10" step="0.1" placeholder="1.0"><span class="unit">V</span></div>
+        <div class="input-unit"><input type="number" id="m-thr-vms" min="0" max="2"  step="0.1" placeholder="0.4"><span class="unit">ms</span></div>
+      </div>
+    </div>
+
+    <!-- Amplitude -->
+    <div class="form-group">
+      <div class="section-head"><span class="num-tag">7</span>波高値（Sensing Amplitude）</div>
+      <div class="av-grid three-col">
+        <div></div>
+        <div class="av-col-label">心房（A）</div>
+        <div class="av-col-label">心室（V）</div>
+        <div class="av-row-label">波高値</div>
+        <div class="input-unit"><input type="number" id="m-sense-a" min="0" max="50" step="0.1" placeholder="2.0"><span class="unit">mV</span></div>
+        <div class="input-unit"><input type="number" id="m-sense-v" min="0" max="50" step="0.1" placeholder="8.5"><span class="unit">mV</span></div>
+      </div>
+    </div>
+
+    <!-- Impedance -->
+    <div class="form-group">
+      <div class="section-head"><span class="num-tag">8</span>インピーダンス</div>
+      <div class="av-grid three-col">
+        <div></div>
+        <div class="av-col-label">心房（A）</div>
+        <div class="av-col-label">心室（V）</div>
+        <div class="av-row-label">インピーダンス</div>
+        <div class="input-unit"><input type="number" id="m-imp-a" min="0" max="3000" step="1" placeholder="300"><span class="unit">Ω</span></div>
+        <div class="input-unit"><input type="number" id="m-imp-v" min="0" max="3000" step="1" placeholder="600"><span class="unit">Ω</span></div>
+      </div>
+    </div>
+
+    ${inclBat ? `
+    <!-- Battery -->
+    <div class="form-group">
+      <div class="section-head"><span class="num-tag">9</span>電池寿命（推定）</div>
+      <div class="av-grid three-col">
+        <div></div>
+        <div class="av-col-label">Aveir AR（心房）</div>
+        <div class="av-col-label">Aveir VR（心室）</div>
+        <div class="av-row-label">推定寿命</div>
+        <div class="input-unit"><input type="number" id="m-bat-a" min="0" max="25" step="0.1" placeholder="7.0"><span class="unit">年</span></div>
+        <div class="input-unit"><input type="number" id="m-bat-v" min="0" max="25" step="0.1" placeholder="11.0"><span class="unit">年</span></div>
+      </div>
+    </div>` : ''}
+  `;
+}
+
+// ═══════════════════════════════════════════════════
+//  Collect measurement values
+// ═══════════════════════════════════════════════════
+function nv(id) { const el=document.getElementById(id); if(!el) return null; const v=el.value; return v!=='' ? parseFloat(v) : null; }
+function collectMeasure(inclBat) {
+  const d = {
+    i2iA: parseInt(document.getElementById('m-i2i-a')?.value)||null,
+    i2iV: parseInt(document.getElementById('m-i2i-v')?.value)||null,
+    throughputA2V: nv('m-tp-a2v'), throughputV2A: nv('m-tp-v2a'),
+    thresholdAV: nv('m-thr-av'), thresholdAms: nv('m-thr-ams'),
+    thresholdVV: nv('m-thr-vv'), thresholdVms: nv('m-thr-vms'),
+    amplitudeA: nv('m-sense-a'), amplitudeV: nv('m-sense-v'),
+    impedanceA: nv('m-imp-a'),   impedanceV: nv('m-imp-v'),
+    recordedAt: new Date().toISOString().split('T')[0],
+  };
+  if (inclBat) { d.batteryA = nv('m-bat-a'); d.batteryV = nv('m-bat-v'); }
+  return d;
+}
+
+// ═══════════════════════════════════════════════════
+//  New patient submit
+// ═══════════════════════════════════════════════════
+function submitNewPatient() {
+  hideErr('np-error');
+  const hospital     = document.getElementById('np-hospital').value.trim();
+  const disease      = document.getElementById('np-disease').value;
+  const diseaseOther = disease==='other' ? document.getElementById('np-disease-other').value.trim() : '';
+  const mode         = document.getElementById('np-mode').value;
+  const snAR         = document.getElementById('np-sn-ar').value.trim();
+  const snVR         = document.getElementById('np-sn-vr').value.trim();
+
+  if (!hospital)                             { showErr('np-error','病院名を入力してください'); return; }
+  if (!disease)                              { showErr('np-error','疾患を選択してください'); return; }
+  if (disease==='other' && !diseaseOther)    { showErr('np-error','疾患名を入力してください'); return; }
+  if (!mode)                                 { showErr('np-error','MODEを選択してください'); return; }
+
+  const db = loadDB();
+  const newId = db.patients.length + 1;
+  db.patients.push({ id:newId, hospital, disease, diseaseOther, mode, snAR, snVR,
+    discharge: collectMeasure(false), outpatient: null, threeMonth: null });
+  saveDB(db);
+  showConfirm(newId, '退院時データが登録されました',
+    `このデータは #${newId} として登録されました。\n次回は外来時（2〜4週後）にデータ入力をお願いします。`);
+}
+
+// ═══════════════════════════════════════════════════
+//  Patient helpers
+// ═══════════════════════════════════════════════════
+const getStatus = p => {
+  if (p.threeMonth) return {label:'全完了',            next:null,         badge:'badge-done'};
+  if (p.outpatient) return {label:'3か月後データ待ち', next:'threeMonth', badge:'badge-pending'};
+  if (p.discharge)  return {label:'外来データ待ち',    next:'outpatient', badge:'badge-pending'};
+  return                   {label:'未入力',            next:'discharge',  badge:'badge-pending'};
+};
+const TP_LABELS  = {discharge:'① 退院時', outpatient:'② 外来時', threeMonth:'③ 3か月後'};
+const TP_TITLES  = {outpatient:'外来時（2〜4週）データ入力', threeMonth:'3か月後データ入力'};
+const TP_MSG     = {
+  outpatient: '次回は3か月後にデータ入力をお願いします。',
+  threeMonth: '全ての観察期間のデータ収集が完了しました。お疲れ様でした。',
+};
+const TP_CONF    = {outpatient:'外来時データが登録されました', threeMonth:'3か月後データが登録されました'};
+const dLabel = p => p.disease==='other' ? p.diseaseOther : p.disease;
+
+// ═══════════════════════════════════════════════════
+//  Patient select list
+// ═══════════════════════════════════════════════════
+function renderPatientSelectList() {
+  const db = loadDB();
+  const el = document.getElementById('patient-select-list');
+  if (!db.patients.length) {
+    el.innerHTML = '<div class="empty-state">登録患者がいません。まず初回登録を行ってください。</div>';
+    return;
+  }
+  const nextTxt = {outpatient:'次回: 外来時データ入力', threeMonth:'次回: 3か月後データ入力'};
+  el.innerHTML = db.patients.map(p => {
+    const st = getStatus(p);
+    const done = !st.next;
+    return `
+      <div class="patient-card ${done?'complete':''}" ${done?'':` onclick="selectPatient(${p.id})"`}>
+        <div style="display:flex; align-items:center;">
+          <span class="pat-num">#${p.id}</span>
+          <div>
+            <div class="pat-name">${p.hospital}</div>
+            <div class="pat-sub">${dLabel(p)} ／ MODE: ${p.mode}</div>
+          </div>
+        </div>
+        <div style="text-align:right;">
+          <span class="badge ${st.badge}">${st.label}</span>
+          ${!done ? `<span class="badge-next">▶ ${nextTxt[st.next]}</span>` : ''}
+        </div>
+      </div>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════════════════════
+//  Select patient → Add data
+// ═══════════════════════════════════════════════════
+let _pid=null, _tp=null;
+
+function selectPatient(id) {
+  const db = loadDB();
+  const p  = db.patients.find(x => x.id===id);
+  if (!p) return;
+  const st = getStatus(p);
+  if (!st.next) return;
+  _pid=id; _tp=st.next;
+  const inclBat = (_tp==='outpatient'||_tp==='threeMonth');
+
+  document.getElementById('add-data-title').textContent = `#${id} ${p.hospital} ─ ${TP_TITLES[st.next]}`;
+  document.getElementById('tp-steps-indicator').innerHTML =
+    ['discharge','outpatient','threeMonth'].map(tp => {
+      let cls=''; if(p[tp]) cls='done'; else if(tp===st.next) cls='current';
+      return `<div class="tp-step ${cls}">${TP_LABELS[tp]}${cls==='done'?' ✓':''}</div>`;
+    }).join('');
+  document.getElementById('add-data-info').innerHTML = `
+    <div class="alert alert-info" style="margin-bottom:16px;">
+      <strong>${p.hospital}</strong> ／ 疾患: ${dLabel(p)} ／ MODE: ${p.mode}<br>
+      <span style="font-size:.8rem;">AR SN: ${p.snAR||'─'} ／ VR SN: ${p.snVR||'─'}</span>
+    </div>`;
+  document.getElementById('add-data-fields').innerHTML = '<div id="m-inner"></div>';
+  buildMeasureFields('m-inner', inclBat);
+  hideErr('add-error');
+  goto('screen-add-data');
+}
+
+// ═══════════════════════════════════════════════════
+//  Submit add data
+// ═══════════════════════════════════════════════════
+function submitAddData() {
+  if (!_pid||!_tp) return;
+  hideErr('add-error');
+  const inclBat = (_tp==='outpatient'||_tp==='threeMonth');
+  const db = loadDB();
+  const p  = db.patients.find(x => x.id===_pid);
+  if (!p) return;
+  p[_tp] = collectMeasure(inclBat);
+  saveDB(db);
+  showConfirm(_pid, TP_CONF[_tp], `#${_pid} のデータが登録されました。\n${TP_MSG[_tp]}`);
+}
+
+// ═══════════════════════════════════════════════════
+//  Confirmation
+// ═══════════════════════════════════════════════════
+function showConfirm(id, title, msg) {
+  document.getElementById('conf-id').textContent    = `#${id}`;
+  document.getElementById('conf-title').textContent = title;
+  document.getElementById('conf-msg').innerHTML     = msg.replace(/\n/g,'<br>');
+  goto('screen-confirmation');
+}
+
+// ═══════════════════════════════════════════════════
+//  Serial lookup
+// ═══════════════════════════════════════════════════
+function doLookup() {
+  hideErr('lookup-error');
+  document.getElementById('lookup-result').classList.remove('show');
+  const sn = document.getElementById('lookup-sn').value.trim();
+  if (!sn) { showErr('lookup-error','シリアル番号を入力してください'); return; }
+  const db = loadDB();
+  const p  = db.patients.find(x => (x.snAR&&x.snAR===sn)||(x.snVR&&x.snVR===sn));
+  if (!p)  { showErr('lookup-error',`SN: ${sn} に該当するデータが見つかりませんでした`); return; }
+  const st = getStatus(p);
+  const short = {discharge:'退院時', outpatient:'外来時', threeMonth:'3か月後'};
+  const nextTxt= {outpatient:'次回: 外来時データ入力', threeMonth:'次回: 3か月後データ入力'};
+  document.getElementById('lr-num').textContent      = `#${p.id}`;
+  document.getElementById('lr-hospital').textContent = p.hospital;
+  document.getElementById('lr-sub').textContent      =
+    `疾患: ${dLabel(p)} ／ MODE: ${p.mode} ／ AR SN: ${p.snAR||'─'} ／ VR SN: ${p.snVR||'─'}`;
+  document.getElementById('lr-chips').innerHTML =
+    ['discharge','outpatient','threeMonth'].map(tp => {
+      const done=!!p[tp];
+      return `<span class="tp-chip ${done?'done':'empty'}">${short[tp]}: ${done?p[tp].recordedAt:'未入力'}</span>`;
+    }).join('');
+  document.getElementById('lr-next').innerHTML = st.next
+    ? `<span style="color:var(--blue);">▶ ${nextTxt[st.next]}</span>`
+    : `<span style="color:var(--green);">✓ 全データ入力済み</span>`;
+  document.getElementById('lookup-result').classList.add('show');
+}
+
+// ═══════════════════════════════════════════════════
+//  Admin PIN
+// ═══════════════════════════════════════════════════
+function openAdminPin() {
+  document.getElementById('pin-input').value='';
+  document.getElementById('pin-err').classList.remove('show');
+  document.getElementById('pin-overlay').classList.add('show');
+  setTimeout(()=>document.getElementById('pin-input').focus(),100);
+}
+function closePinOverlay() { document.getElementById('pin-overlay').classList.remove('show'); }
+function checkPin() {
+  if (document.getElementById('pin-input').value === ADMIN_PIN) {
+    closePinOverlay(); renderDataList(); goto('screen-data-list');
+  } else {
+    document.getElementById('pin-err').classList.add('show');
+    document.getElementById('pin-input').value='';
+    document.getElementById('pin-input').focus();
+  }
+}
+document.getElementById('pin-overlay').addEventListener('click', function(e){ if(e.target===this) closePinOverlay(); });
+
+// ═══════════════════════════════════════════════════
+//  Admin data list
+// ═══════════════════════════════════════════════════
+function renderDataList() {
+  const db = loadDB();
+  const el = document.getElementById('data-list-content');
+  if (!db.patients.length) { el.innerHTML='<div class="empty-state">登録データがありません</div>'; return; }
+  const short={discharge:'退院時',outpatient:'外来時',threeMonth:'3か月後'};
+  el.innerHTML = db.patients.map(p => {
+    const st=getStatus(p);
+    const chips=['discharge','outpatient','threeMonth'].map(tp => {
+      const done=!!p[tp];
+      return `<span class="tp-chip ${done?'done':'empty'}">${short[tp]}: ${done?p[tp].recordedAt:'未入力'}</span>`;
+    }).join('');
+    return `<div class="data-row">
+      <div class="data-row-head">
+        <div><span class="pat-num">#${p.id}</span><strong>${p.hospital}</strong></div>
+        <span class="badge ${st.badge}">${st.label}</span>
+      </div>
+      <div style="font-size:.8rem; color:var(--text-sub);">疾患: ${dLabel(p)} ／ MODE: ${p.mode} ／ AR SN: ${p.snAR||'─'} ／ VR SN: ${p.snVR||'─'}</div>
+      <div class="tp-chips">${chips}</div>
+    </div>`;
+  }).join('');
+}
+</script>
+</body>
+</html>
