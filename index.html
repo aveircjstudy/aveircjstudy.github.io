@@ -421,9 +421,59 @@
       header h1 { font-size: 1.1rem; }
       .av-grid.three-col { grid-template-columns: 56px 1fr 1fr; }
     }
+
+    /* ─── Login Screen ─── */
+    #login-screen {
+      position: fixed; inset: 0;
+      background: linear-gradient(135deg, #1565c0 0%, #0d47a1 100%);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 300;
+    }
+    #login-screen.hidden { display: none; }
+    .login-box {
+      background: #fff;
+      border-radius: 20px;
+      padding: 48px 36px;
+      width: 360px;
+      text-align: center;
+      box-shadow: 0 16px 60px rgba(0,0,0,.3);
+    }
+    .login-logo {
+      font-size: 3rem; margin-bottom: 12px;
+    }
+    .login-title {
+      font-size: 1.4rem; font-weight: 800;
+      color: var(--blue); margin-bottom: 4px;
+    }
+    .login-sub {
+      font-size: .78rem; color: var(--text-sub); margin-bottom: 28px;
+    }
+    .login-box input {
+      font-size: 1rem; padding: 12px 16px;
+      text-align: center; letter-spacing: 2px;
+      margin-bottom: 14px;
+    }
+    .login-err {
+      color: var(--red); font-size: .82rem;
+      font-weight: 700; margin-bottom: 12px; display: none;
+    }
+    .login-err.show { display: block; }
   </style>
 </head>
 <body>
+
+<!-- ── Login Screen ── -->
+<div id="login-screen">
+  <div class="login-box">
+    <div class="login-logo">🫀</div>
+    <div class="login-title">Aveir CJ Study</div>
+    <div class="login-sub">Aveir DR（AR2＋VR）｜ 3か月短期スタディ</div>
+    <input type="password" id="login-pw" placeholder="パスワードを入力"
+           onkeydown="if(event.key==='Enter')checkLogin()">
+    <div class="login-err" id="login-err">パスワードが正しくありません</div>
+    <button class="btn btn-blue btn-full" onclick="checkLogin()">ログイン</button>
+  </div>
+</div>
 
 <!-- PIN Overlay -->
 <div class="overlay" id="pin-overlay">
@@ -623,6 +673,12 @@
     <div class="card">
       <div class="card-title">🗂 全登録データ一覧（管理者）</div>
       <div id="data-list-content"></div>
+      <div style="margin-top:20px; border-top:1px solid var(--border); padding-top:16px;">
+        <button class="btn btn-full" onclick="clearAllData()"
+          style="background:#fff0f0; color:var(--red); border:1.5px solid #ffcccc; font-size:.88rem;">
+          🗑 全データを削除する（取り消し不可）
+        </button>
+      </div>
     </div>
   </div>
 
@@ -630,9 +686,31 @@
 
 <script>
 // ═══════════════════════════════════════════════════
-//  ★ PINをここで変更できます
+//  ★ パスワード・PINをここで変更できます
 // ═══════════════════════════════════════════════════
-const ADMIN_PIN = '1234';
+const LOGIN_PW  = 'AveirCJstudy'; // サイト入室パスワード
+const ADMIN_PIN = '1234';          // 管理者データ一覧PIN
+
+// ═══════════════════════════════════════════════════
+//  Login
+// ═══════════════════════════════════════════════════
+function checkLogin() {
+  const pw = document.getElementById('login-pw').value;
+  if (pw === LOGIN_PW) {
+    sessionStorage.setItem('authed', '1');
+    document.getElementById('login-screen').classList.add('hidden');
+  } else {
+    document.getElementById('login-err').classList.add('show');
+    document.getElementById('login-pw').value = '';
+    document.getElementById('login-pw').focus();
+  }
+}
+// ページ読み込み時：すでに認証済みならログイン画面をスキップ
+if (sessionStorage.getItem('authed') === '1') {
+  document.getElementById('login-screen').classList.add('hidden');
+} else {
+  setTimeout(() => document.getElementById('login-pw').focus(), 100);
+}
 
 // ═══════════════════════════════════════════════════
 //  Storage
@@ -984,6 +1062,13 @@ document.getElementById('pin-overlay').addEventListener('click', function(e){ if
 // ═══════════════════════════════════════════════════
 //  Admin data list
 // ═══════════════════════════════════════════════════
+function clearAllData() {
+  if (confirm('全データを削除します。この操作は取り消せません。よろしいですか？')) {
+    localStorage.removeItem(KEY);
+    renderDataList();
+  }
+}
+
 function renderDataList() {
   const db = loadDB();
   const el = document.getElementById('data-list-content');
