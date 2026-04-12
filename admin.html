@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Aveir CJ Study – 管理者</title>
+  <style>
+    :root {
+      --blue:     #1565c0;
+      --blue-lt:  #1976d2;
+      --blue-bg:  #e3f0fb;
+      --orange:   #e65100;
+      --org-bg:   #fff3e0;
+      --green:    #2e7d32;
+      --green-bg: #e8f5e9;
+      --red:      #c62828;
+      --red-bg:   #ffebee;
+      --purple:   #6a1b9a;
+      --pur-bg:   #f3e5f5;
+      --teal:     #00695c;
+      --teal-bg:  #e0f2f1;
+      --bg:       #f0f4f8;
+      --card:     #ffffff;
+      --border:   #c8d6e4;
+      --text:     #1a2633;
+      --sub:      #4a6070;
+      --shadow:   0 2px 12px rgba(0,0,0,.10);
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI','Hiragino Sans','Yu Gothic UI',sans-serif;
+      background: var(--bg); color: var(--text);
+      font-size: 15px; line-height: 1.5; min-height: 100vh;
+    }
+
+    /* ── Login ── */
+    #login-screen {
+      position: fixed; inset: 0;
+      background: linear-gradient(135deg,#1a237e 0%,#1565c0 100%);
+      display: flex; align-items: center; justify-content: center; z-index: 300;
+    }
+    #login-screen.hidden { display: none; }
+    .login-box {
+      background: #fff; border-radius: 20px;
+      padding: 48px 36px; width: 360px; text-align: center;
+      box-shadow: 0 16px 60px rgba(0,0,0,.3);
+    }
+    .login-logo { font-size: 2.8rem; margin-bottom: 10px; }
+    .login-title { font-size: 1.3rem; font-weight: 800; color: var(--blue); margin-bottom: 2px; }
+    .login-badge {
+      display: inline-block; background: var(--pur-bg); color: var(--purple);
+      font-size: .72rem; font-weight: 700; padding: 2px 10px;
+      border-radius: 12px; margin-bottom: 22px;
+    }
+    .login-box input {
+      width: 100%; background: #f4f6f9; border: 1.5px solid var(--border);
+      border-radius: 8px; color: var(--text); padding: 11px 14px;
+      font-size: 1rem; text-align: center; letter-spacing: 2px; margin-bottom: 12px;
+      transition: border-color .15s;
+    }
+    .login-box input:focus { outline: none; border-color: var(--blue); }
+    .login-err { color: var(--red); font-size: .82rem; font-weight: 700; margin-bottom: 10px; display: none; }
+    .login-err.show { display: block; }
+
+    /* ── Header ── */
+    header {
+      background: linear-gradient(90deg,#1a237e,#1565c0);
+      color: #fff; padding: 14px 24px;
+      display: flex; align-items: center; justify-content: space-between;
+      box-shadow: 0 2px 8px rgba(0,0,0,.2);
+      position: sticky; top: 0; z-index: 50;
+    }
+    .hdr-left { display: flex; align-items: center; gap: 12px; }
+    .hdr-icon {
+      font-size: 1.6rem; background: rgba(255,255,255,.15);
+      border-radius: 10px; width: 42px; height: 42px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    header h1 { font-size: 1.2rem; font-weight: 700; }
+    header p  { font-size: .72rem; opacity: .85; margin-top: 1px; }
+    .admin-badge {
+      background: rgba(255,255,255,.15); border: 1px solid rgba(255,255,255,.3);
+      border-radius: 8px; padding: 4px 12px; font-size: .75rem; font-weight: 700;
+    }
+
+    /* ── Layout ── */
+    .container { max-width: 960px; margin: 0 auto; padding: 28px 16px 80px; }
+
+    /* ── Cards ── */
+    .card {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 12px; padding: 22px; margin-bottom: 18px;
+      box-shadow: var(--shadow);
+    }
+    .card-title {
+      font-size: 1rem; font-weight: 700; color: var(--blue);
+      border-bottom: 2px solid var(--blue-bg);
+      padding-bottom: 10px; margin-bottom: 18px;
+      display: flex; align-items: center; gap: 8px;
+    }
+
+    /* ── Stat grid ── */
+    .stat-grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(140px,1fr)); gap: 12px; margin-bottom: 18px; }
+    .stat-box {
+      border-radius: 10px; padding: 16px 14px; text-align: center;
+      border: 1px solid transparent;
+    }
+    .stat-box .stat-val { font-size: 2.4rem; font-weight: 900; line-height: 1; margin-bottom: 4px; }
+    .stat-box .stat-lbl { font-size: .75rem; font-weight: 600; }
+    .s-blue   { background: var(--blue-bg);  border-color: #a0c8f0; color: var(--blue);   }
+    .s-orange { background: var(--org-bg);   border-color: #f0c080; color: var(--orange); }
+    .s-green  { background: var(--green-bg); border-color: #90d4a0; color: var(--green);  }
+    .s-purple { background: var(--pur-bg);   border-color: #c090e0; color: var(--purple); }
+    .s-teal   { background: var(--teal-bg);  border-color: #80c8c0; color: var(--teal);   }
+    .s-red    { background: var(--red-bg);   border-color: #f0a0a0; color: var(--red);    }
+
+    /* ── Bar chart ── */
+    .bar-section { margin-bottom: 20px; }
+    .bar-section h3 { font-size: .85rem; font-weight: 700; color: var(--sub); margin-bottom: 10px; text-transform: uppercase; letter-spacing: .5px; }
+    .bar-row { display: flex; align-items: center; gap: 10px; margin-bottom: 7px; }
+    .bar-label { font-size: .83rem; font-weight: 600; min-width: 130px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .bar-track { flex: 1; background: #e8ecf0; border-radius: 6px; height: 22px; overflow: hidden; }
+    .bar-fill  { height: 100%; border-radius: 6px; transition: width .4s; display: flex; align-items: center; padding-left: 8px; }
+    .bar-fill span { font-size: .75rem; font-weight: 700; color: #fff; white-space: nowrap; }
+    .bar-n { font-size: .82rem; font-weight: 700; min-width: 36px; text-align: right; }
+
+    /* ── Patient table ── */
+    .pt-table { width: 100%; border-collapse: collapse; font-size: .83rem; }
+    .pt-table th {
+      background: var(--blue-bg); color: var(--blue);
+      font-weight: 700; padding: 9px 10px; text-align: left;
+      border-bottom: 2px solid #a0c8f0; white-space: nowrap;
+    }
+    .pt-table td { padding: 9px 10px; border-bottom: 1px solid #e8ecf0; vertical-align: middle; }
+    .pt-table tr:last-child td { border-bottom: none; }
+    .pt-table tr:hover td { background: #f8fafc; }
+    .pt-table tr.expandable { cursor: pointer; }
+
+    /* ── Detail panel (expanded) ── */
+    .detail-row td { background: var(--blue-bg) !important; padding: 0 !important; }
+    .detail-inner { padding: 16px 20px; }
+    .detail-grid {
+      display: grid; grid-template-columns: repeat(auto-fit,minmax(200px,1fr));
+      gap: 16px; font-size: .82rem;
+    }
+    .detail-section h4 { font-size: .75rem; font-weight: 700; color: var(--blue); margin-bottom: 8px; text-transform: uppercase; letter-spacing: .5px; }
+    .detail-row-item { display: flex; justify-content: space-between; padding: 3px 0; border-bottom: 1px solid rgba(0,0,0,.06); }
+    .detail-row-item .dk { color: var(--sub); }
+    .detail-row-item .dv { font-weight: 700; color: var(--text); }
+
+    /* ── Badge ── */
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: .7rem; font-weight: 700; }
+    .b-done    { background: var(--green-bg); color: var(--green); }
+    .b-pending { background: var(--org-bg);   color: var(--orange); }
+    .b-complete { background: var(--blue-bg); color: var(--blue); }
+
+    /* ── Buttons ── */
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+      border: none; border-radius: 8px; cursor: pointer;
+      font-size: .88rem; font-weight: 700; padding: 9px 18px; transition: all .15s;
+    }
+    .btn-blue   { background: var(--blue);  color: #fff; }
+    .btn-blue:hover { background: #0d47a1; }
+    .btn-red    { background: #fff0f0; color: var(--red); border: 1.5px solid #ffcccc; }
+    .btn-red:hover  { background: var(--red-bg); }
+    .btn-gray   { background: #e8edf2; color: var(--text); }
+    .btn-gray:hover { background: #d8e0e8; }
+    .btn-full { width: 100%; padding: 12px; }
+
+    /* ── Section divider ── */
+    .sec-div { border: none; border-top: 2px solid var(--blue-bg); margin: 22px 0; }
+
+    /* ── Chip ── */
+    .tp-chip { display: inline-block; font-size: .7rem; font-weight: 600; padding: 2px 8px; border-radius: 10px; margin: 1px; }
+    .tp-chip.done  { background: var(--green-bg); color: var(--green); }
+    .tp-chip.empty { background: #e8ecf0; color: var(--sub); }
+
+    /* ── Empty ── */
+    .empty-state { text-align: center; color: var(--sub); padding: 36px 0; font-size: .9rem; }
+
+    /* ── Responsive ── */
+    @media (max-width:600px) {
+      .stat-grid { grid-template-columns: repeat(2,1fr); }
+      .pt-table { font-size: .75rem; }
+      .pt-table th, .pt-table td { padding: 7px 6px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- Login -->
+<div id="login-screen">
+  <div class="login-box">
+    <div class="login-logo">🔐</div>
+    <div class="login-title">Aveir CJ Study</div>
+    <div class="login-badge">管理者専用ページ</div>
+    <input type="password" id="login-pw" placeholder="管理者パスワード"
+           onkeydown="if(event.key==='Enter')checkLogin()">
+    <div class="login-err" id="login-err">パスワードが正しくありません</div>
+    <button class="btn btn-blue btn-full" onclick="checkLogin()">ログイン</button>
+  </div>
+</div>
+
+<header>
+  <div class="hdr-left">
+    <div class="hdr-icon">🫀</div>
+    <div>
+      <h1>Aveir CJ Study</h1>
+      <p>管理者ダッシュボード</p>
+    </div>
+  </div>
+  <div class="admin-badge">🔒 管理者</div>
+</header>
+
+<div class="container">
+
+  <!-- ── Statistics ── -->
+  <div class="card">
+    <div class="card-title">📊 スタディ統計サマリー</div>
+    <div class="stat-grid" id="stat-grid"></div>
+
+    <hr class="sec-div">
+
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:24px; flex-wrap:wrap;">
+      <!-- MODE -->
+      <div class="bar-section">
+        <h3>MODE 別</h3>
+        <div id="bar-mode"></div>
+      </div>
+      <!-- 疾患 -->
+      <div class="bar-section">
+        <h3>疾患 別</h3>
+        <div id="bar-disease"></div>
+      </div>
+    </div>
+
+    <hr class="sec-div">
+
+    <!-- 施設 -->
+    <div class="bar-section">
+      <h3>施設 別 N 数</h3>
+      <div id="bar-hospital"></div>
+    </div>
+
+    <hr class="sec-div">
+
+    <!-- データ収集進捗 -->
+    <div class="bar-section">
+      <h3>データ収集 進捗</h3>
+      <div id="bar-progress"></div>
+    </div>
+  </div>
+
+  <!-- ── Patient List ── -->
+  <div class="card">
+    <div class="card-title">🗂 全患者データ一覧</div>
+    <div style="overflow-x:auto;">
+      <table class="pt-table" id="pt-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>施設</th>
+            <th>疾患</th>
+            <th>MODE</th>
+            <th>AR SN</th>
+            <th>VR SN</th>
+            <th>退院時</th>
+            <th>外来時</th>
+            <th>3か月後</th>
+            <th>ステータス</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="pt-tbody"></tbody>
+      </table>
+    </div>
+    <div id="pt-empty" class="empty-state" style="display:none;">登録患者がいません</div>
+  </div>
+
+  <!-- ── Data Management ── -->
+  <div class="card">
+    <div class="card-title">⚙️ データ管理</div>
+    <p style="font-size:.85rem; color:var(--sub); margin-bottom:16px;">
+      以下の操作は取り消せません。実行前に必ずデータをご確認ください。
+    </p>
+    <button class="btn btn-red btn-full" onclick="clearAllData()">
+      🗑 全データを削除する（取り消し不可）
+    </button>
+  </div>
+
+</div>
+
+<script>
+// ════════════════════════════════════════
+//  ★ 管理者パスワードをここで変更できます
+// ════════════════════════════════════════
+const ADMIN_PW = 'AveirCJstudy';
+
+// ════════════════════════════════════════
+//  Storage（index.html と同じキー）
+// ════════════════════════════════════════
+const KEY = 'aveir_cj_v3';
+const loadDB = () => { try { return JSON.parse(localStorage.getItem(KEY)) || {patients:[]}; } catch { return {patients:[]}; } };
+const saveDB = db => localStorage.setItem(KEY, JSON.stringify(db));
+
+// ════════════════════════════════════════
+//  Login
+// ════════════════════════════════════════
+function checkLogin() {
+  if (document.getElementById('login-pw').value === ADMIN_PW) {
+    sessionStorage.setItem('admin_authed','1');
+    document.getElementById('login-screen').classList.add('hidden');
+    renderAll();
+  } else {
+    document.getElementById('login-err').classList.add('show');
+    document.getElementById('login-pw').value = '';
+    document.getElementById('login-pw').focus();
+  }
+}
+if (sessionStorage.getItem('admin_authed') === '1') {
+  document.getElementById('login-screen').classList.add('hidden');
+  renderAll();
+} else {
+  setTimeout(() => document.getElementById('login-pw').focus(), 100);
+}
+
+// ════════════════════════════════════════
+//  Helpers
+// ════════════════════════════════════════
+const dLabel = p => p.disease === 'other' ? (p.diseaseOther || 'Other') : p.disease;
+const getStatus = p => {
+  if (p.threeMonth) return {label:'全完了',    badge:'b-complete'};
+  if (p.outpatient) return {label:'3か月後待ち',badge:'b-pending'};
+  if (p.discharge)  return {label:'外来待ち',   badge:'b-pending'};
+  return                   {label:'未入力',      badge:'b-pending'};
+};
+
+function fmt(v, unit='') { return v != null ? `${v}${unit}` : '─'; }
+
+// ════════════════════════════════════════
+//  Render everything
+// ════════════════════════════════════════
+function renderAll() {
+  const db = loadDB();
+  const ps = db.patients;
+  renderStats(ps);
+  renderTable(ps);
+}
+
+// ════════════════════════════════════════
+//  Statistics
+// ════════════════════════════════════════
+function renderStats(ps) {
+  const total    = ps.length;
+  const complete = ps.filter(p => p.threeMonth).length;
+  const dis      = ps.filter(p => p.discharge).length;
+  const out      = ps.filter(p => p.outpatient).length;
+  const ddd      = ps.filter(p => p.mode === 'DDD').length;
+  const aai      = ps.filter(p => p.mode === 'AAI+VVI').length;
+
+  // Stat boxes
+  document.getElementById('stat-grid').innerHTML = `
+    <div class="stat-box s-blue">  <div class="stat-val">${total}</div>    <div class="stat-lbl">総登録数 N</div></div>
+    <div class="stat-box s-green"> <div class="stat-val">${complete}</div>  <div class="stat-lbl">全完了</div></div>
+    <div class="stat-box s-orange"><div class="stat-val">${ddd}</div>        <div class="stat-lbl">DDD</div></div>
+    <div class="stat-box s-purple"><div class="stat-val">${aai}</div>        <div class="stat-lbl">AAI＋VVI</div></div>
+    <div class="stat-box s-teal">  <div class="stat-val">${dis}</div>        <div class="stat-lbl">退院時 収集済</div></div>
+    <div class="stat-box s-red">   <div class="stat-val">${total - complete}</div><div class="stat-lbl">フォロー中</div></div>
+  `;
+
+  if (!total) {
+    ['bar-mode','bar-disease','bar-hospital','bar-progress'].forEach(id => {
+      document.getElementById(id).innerHTML = '<div style="color:var(--sub);font-size:.83rem;">データなし</div>';
+    });
+    return;
+  }
+
+  // MODE
+  renderBars('bar-mode', [
+    {label:'DDD',      n:ddd,  color:'#1976d2'},
+    {label:'AAI＋VVI', n:aai,  color:'#7b1fa2'},
+  ], total);
+
+  // Disease
+  const diseases = ['AVB','SSS','TAVI後AVB'];
+  const dCounts = diseases.map(d => ({label:d, n:ps.filter(p=>p.disease===d).length, color:'#e65100'}));
+  const otherN  = ps.filter(p=>p.disease==='other').length;
+  if (otherN) dCounts.push({label:'Other', n:otherN, color:'#546e7a'});
+  renderBars('bar-disease', dCounts.filter(d=>d.n>0), total);
+
+  // Hospital
+  const hospMap = {};
+  ps.forEach(p => { hospMap[p.hospital] = (hospMap[p.hospital]||0) + 1; });
+  const hospArr = Object.entries(hospMap)
+    .map(([label,n])=>({label,n,color:'#00695c'}))
+    .sort((a,b)=>b.n-a.n);
+  renderBars('bar-hospital', hospArr, total);
+
+  // Progress
+  renderBars('bar-progress', [
+    {label:'退院時',   n:dis,  color:'#1565c0'},
+    {label:'外来時',   n:out,  color:'#e65100'},
+    {label:'3か月後',  n:complete, color:'#2e7d32'},
+  ], total);
+}
+
+function renderBars(id, items, total) {
+  const el = document.getElementById(id);
+  if (!items.length) { el.innerHTML = '<div style="color:var(--sub);font-size:.83rem;">データなし</div>'; return; }
+  el.innerHTML = items.map(({label,n,color}) => {
+    const pct = total > 0 ? Math.round(n/total*100) : 0;
+    return `
+      <div class="bar-row">
+        <div class="bar-label" title="${label}">${label}</div>
+        <div class="bar-track">
+          <div class="bar-fill" style="width:${pct}%;background:${color};">
+            ${pct >= 15 ? `<span>${pct}%</span>` : ''}
+          </div>
+        </div>
+        <div class="bar-n" style="color:${color};">N=${n}</div>
+      </div>`;
+  }).join('');
+}
+
+// ════════════════════════════════════════
+//  Patient table
+// ════════════════════════════════════════
+const tpShort = {discharge:'退院時', outpatient:'外来時', threeMonth:'3か月後'};
+
+function renderTable(ps) {
+  const tbody = document.getElementById('pt-tbody');
+  const empty = document.getElementById('pt-empty');
+
+  if (!ps.length) {
+    tbody.innerHTML = '';
+    document.querySelector('#pt-table thead').style.display = 'none';
+    empty.style.display = 'block';
+    return;
+  }
+  document.querySelector('#pt-table thead').style.display = '';
+  empty.style.display = 'none';
+
+  tbody.innerHTML = ps.map(p => {
+    const st = getStatus(p);
+    const chips = ['discharge','outpatient','threeMonth'].map(tp =>
+      `<span class="tp-chip ${p[tp]?'done':'empty'}">${tpShort[tp]}${p[tp]?' ✓':''}</span>`
+    ).join('');
+    return `
+      <tr class="expandable" onclick="toggleDetail(${p.id})">
+        <td><strong style="color:var(--orange);">#${p.id}</strong></td>
+        <td>${p.hospital}</td>
+        <td>${dLabel(p)}</td>
+        <td><span style="font-weight:700;">${p.mode}</span></td>
+        <td style="font-size:.78rem;">${p.snAR||'─'}</td>
+        <td style="font-size:.78rem;">${p.snVR||'─'}</td>
+        <td>${p.discharge  ? `<span class="tp-chip done">✓ ${p.discharge.recordedAt}</span>`  : '<span class="tp-chip empty">未入力</span>'}</td>
+        <td>${p.outpatient ? `<span class="tp-chip done">✓ ${p.outpatient.recordedAt}</span>` : '<span class="tp-chip empty">未入力</span>'}</td>
+        <td>${p.threeMonth ? `<span class="tp-chip done">✓ ${p.threeMonth.recordedAt}</span>` : '<span class="tp-chip empty">未入力</span>'}</td>
+        <td><span class="badge ${st.badge}">${st.label}</span></td>
+        <td>
+          <button class="btn btn-red" style="padding:4px 10px;font-size:.75rem;"
+            onclick="event.stopPropagation(); deletePatient(${p.id})">削除</button>
+        </td>
+      </tr>
+      <tr id="detail-${p.id}" style="display:none;">
+        <td colspan="11">
+          <div class="detail-inner">
+            ${buildDetailHTML(p)}
+          </div>
+        </td>
+      </tr>`;
+  }).join('');
+}
+
+function toggleDetail(id) {
+  const row = document.getElementById(`detail-${id}`);
+  row.style.display = row.style.display === 'none' ? 'table-row' : 'none';
+}
+
+function buildDetailHTML(p) {
+  const tps = [
+    {key:'discharge',  label:'① 退院時'},
+    {key:'outpatient', label:'② 外来時（2〜4週）'},
+    {key:'threeMonth', label:'③ 3か月後'},
+  ];
+  return `<div class="detail-grid">` +
+    tps.map(({key,label}) => {
+      const d = p[key];
+      if (!d) return `<div class="detail-section"><h4>${label}</h4><div style="color:var(--sub);font-size:.82rem;">未入力</div></div>`;
+      const rows = [
+        ['記録日',        d.recordedAt || '─'],
+        ['i2i レベル A',  fmt(d.i2iA)],
+        ['i2i レベル V',  fmt(d.i2iV)],
+        ['スループット A2V', fmt(d.throughputA2V, '%')],
+        ['スループット V2A', fmt(d.throughputV2A, '%')],
+        ['閾値 A',        d.thresholdAV != null ? `${d.thresholdAV}V @ ${d.thresholdAms}ms` : '─'],
+        ['閾値 V',        d.thresholdVV != null ? `${d.thresholdVV}V @ ${d.thresholdVms}ms` : '─'],
+        ['波高値 A',      fmt(d.amplitudeA, ' mV')],
+        ['波高値 V',      fmt(d.amplitudeV, ' mV')],
+        ['インピーダンス A', fmt(d.impedanceA, ' Ω')],
+        ['インピーダンス V', fmt(d.impedanceV, ' Ω')],
+        ...(d.batteryA != null ? [['電池寿命 AR', fmt(d.batteryA, ' 年')], ['電池寿命 VR', fmt(d.batteryV, ' 年')]] : []),
+      ];
+      return `<div class="detail-section">
+        <h4>${label}</h4>
+        ${rows.map(([k,v])=>`<div class="detail-row-item"><span class="dk">${k}</span><span class="dv">${v}</span></div>`).join('')}
+      </div>`;
+    }).join('') + `</div>`;
+}
+
+// ════════════════════════════════════════
+//  Data management
+// ════════════════════════════════════════
+function deletePatient(id) {
+  if (!confirm(`#${id} のデータを削除します。よろしいですか？`)) return;
+  const db = loadDB();
+  db.patients = db.patients.filter(p => p.id !== id);
+  // Renumber IDs
+  db.patients.forEach((p, i) => p.id = i + 1);
+  saveDB(db);
+  renderAll();
+}
+
+function clearAllData() {
+  if (!confirm('全データを削除します。この操作は取り消せません。本当に実行しますか？')) return;
+  localStorage.removeItem(KEY);
+  renderAll();
+}
+</script>
+</body>
+</html>

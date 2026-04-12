@@ -475,20 +475,6 @@
   </div>
 </div>
 
-<!-- PIN Overlay -->
-<div class="overlay" id="pin-overlay">
-  <div class="pin-box">
-    <h3>🔒 管理者認証</h3>
-    <p>PINコードを入力してください</p>
-    <input type="password" id="pin-input" maxlength="8" placeholder="••••"
-           onkeydown="if(event.key==='Enter')checkPin()">
-    <div class="pin-err" id="pin-err">PINが正しくありません</div>
-    <div class="pin-actions">
-      <button class="btn btn-gray"   onclick="closePinOverlay()">キャンセル</button>
-      <button class="btn btn-blue"   onclick="checkPin()">確認</button>
-    </div>
-  </div>
-</div>
 
 <header>
   <div class="icon">🫀</div>
@@ -529,7 +515,6 @@
         </div>
       </button>
     </div>
-    <div class="admin-link" onclick="openAdminPin()">● 管理者メニュー</div>
   </div>
 
   <!-- ═══════════════════ NEW PATIENT ═══════════════════ -->
@@ -667,29 +652,14 @@
     </div>
   </div>
 
-  <!-- ═══════════════════ ADMIN DATA LIST ═══════════════════ -->
-  <div id="screen-data-list" class="screen">
-    <button class="back-btn" onclick="goto('screen-welcome')">◀ メニューへ戻る</button>
-    <div class="card">
-      <div class="card-title">🗂 全登録データ一覧（管理者）</div>
-      <div id="data-list-content"></div>
-      <div style="margin-top:20px; border-top:1px solid var(--border); padding-top:16px;">
-        <button class="btn btn-full" onclick="clearAllData()"
-          style="background:#fff0f0; color:var(--red); border:1.5px solid #ffcccc; font-size:.88rem;">
-          🗑 全データを削除する（取り消し不可）
-        </button>
-      </div>
-    </div>
-  </div>
 
 </div><!-- /container -->
 
 <script>
 // ═══════════════════════════════════════════════════
-//  ★ パスワード・PINをここで変更できます
+//  ★ パスワードをここで変更できます
 // ═══════════════════════════════════════════════════
-const LOGIN_PW  = 'AveirCJstudy'; // サイト入室パスワード
-const ADMIN_PIN = '1234';          // 管理者データ一覧PIN
+const LOGIN_PW = 'AveirCJstudy'; // サイト入室パスワード
 
 // ═══════════════════════════════════════════════════
 //  Login
@@ -1038,58 +1008,6 @@ function doLookup() {
   document.getElementById('lookup-result').classList.add('show');
 }
 
-// ═══════════════════════════════════════════════════
-//  Admin PIN
-// ═══════════════════════════════════════════════════
-function openAdminPin() {
-  document.getElementById('pin-input').value='';
-  document.getElementById('pin-err').classList.remove('show');
-  document.getElementById('pin-overlay').classList.add('show');
-  setTimeout(()=>document.getElementById('pin-input').focus(),100);
-}
-function closePinOverlay() { document.getElementById('pin-overlay').classList.remove('show'); }
-function checkPin() {
-  if (document.getElementById('pin-input').value === ADMIN_PIN) {
-    closePinOverlay(); renderDataList(); goto('screen-data-list');
-  } else {
-    document.getElementById('pin-err').classList.add('show');
-    document.getElementById('pin-input').value='';
-    document.getElementById('pin-input').focus();
-  }
-}
-document.getElementById('pin-overlay').addEventListener('click', function(e){ if(e.target===this) closePinOverlay(); });
-
-// ═══════════════════════════════════════════════════
-//  Admin data list
-// ═══════════════════════════════════════════════════
-function clearAllData() {
-  if (confirm('全データを削除します。この操作は取り消せません。よろしいですか？')) {
-    localStorage.removeItem(KEY);
-    renderDataList();
-  }
-}
-
-function renderDataList() {
-  const db = loadDB();
-  const el = document.getElementById('data-list-content');
-  if (!db.patients.length) { el.innerHTML='<div class="empty-state">登録データがありません</div>'; return; }
-  const short={discharge:'退院時',outpatient:'外来時',threeMonth:'3か月後'};
-  el.innerHTML = db.patients.map(p => {
-    const st=getStatus(p);
-    const chips=['discharge','outpatient','threeMonth'].map(tp => {
-      const done=!!p[tp];
-      return `<span class="tp-chip ${done?'done':'empty'}">${short[tp]}: ${done?p[tp].recordedAt:'未入力'}</span>`;
-    }).join('');
-    return `<div class="data-row">
-      <div class="data-row-head">
-        <div><span class="pat-num">#${p.id}</span><strong>${p.hospital}</strong></div>
-        <span class="badge ${st.badge}">${st.label}</span>
-      </div>
-      <div style="font-size:.8rem; color:var(--text-sub);">疾患: ${dLabel(p)} ／ MODE: ${p.mode} ／ AR SN: ${p.snAR||'─'} ／ VR SN: ${p.snVR||'─'}</div>
-      <div class="tp-chips">${chips}</div>
-    </div>`;
-  }).join('');
-}
 </script>
 </body>
 </html>
