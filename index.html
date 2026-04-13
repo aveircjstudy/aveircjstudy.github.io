@@ -3,6 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self'; script-src 'self' https://www.gstatic.com; connect-src https://firestore.googleapis.com https://*.firebaseio.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com; style-src 'self' 'unsafe-inline'; img-src 'self' data:;">
   <title>Aveir CJ Study</title>
   <style>
     :root {
@@ -951,6 +953,8 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.12.0/firebase-app.js";
 import { getFirestore, collection, doc, getDoc, setDoc, updateDoc, getDocs, query, orderBy, runTransaction }
   from "https://www.gstatic.com/firebasejs/12.12.0/firebase-firestore.js";
+import { getAuth, signInAnonymously }
+  from "https://www.gstatic.com/firebasejs/12.12.0/firebase-auth.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyD92ndAO-95l4r7TwjwNplVs5XTWHifHfU",
@@ -962,6 +966,22 @@ const firebaseConfig = {
 };
 const firebaseApp = initializeApp(firebaseConfig);
 const db = getFirestore(firebaseApp);
+const auth = getAuth(firebaseApp);
+
+// ═══════════════════════════════════════════════════
+//  Security helpers
+// ═══════════════════════════════════════════════════
+async function hashPw(pw) {
+  const data = new TextEncoder().encode(pw + 'aveir_cj_2024_salt');
+  const buf = await crypto.subtle.digest('SHA-256', data);
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
+}
+function esc(s) {
+  if (!s) return '';
+  const d = document.createElement('div');
+  d.textContent = String(s);
+  return d.innerHTML;
+}
 
 // ═══════════════════════════════════════════════════
 //  Firestore helpers
@@ -1029,7 +1049,7 @@ window.lsShowExist = async function() {
   }
   const sel = document.getElementById('ls-hosp-select');
   sel.innerHTML = '<option value="">選択してください</option>' +
-    registered.map(h => `<option value="${h}">${h}</option>`).join('');
+    registered.map(h => `<option value="${esc(h)}">${esc(h)}</option>`).join('');
   document.getElementById('ls-pw-exist').value = '';
   document.getElementById('ls-s0').style.display       = 'none';
   document.getElementById('ls-s1-new').style.display   = 'none';
@@ -1079,7 +1099,9 @@ window.lsRegister = async function() {
   if (pw1 !== pw2) {
     err.textContent = '⚠ パスワードが一致しません'; err.classList.add('show'); return;
   }
-  await saveFacility(hosp, pw1);
+  const hashed = await hashPw(pw1);
+  await saveFacility(hosp, hashed);
+  await signInAnonymously(auth);
   enterApp(hosp);
 };
 
@@ -1091,8 +1113,10 @@ window.lsLogin = async function() {
   if (!hosp) {
     err.textContent = '⚠ 施設を選択してください'; err.classList.add('show'); return;
   }
+  const hashed = await hashPw(pw);
   const facSnap = await getDoc(doc(db, 'facilities', hosp));
-  if (facSnap.exists() && facSnap.data().password === pw) {
+  if (facSnap.exists() && facSnap.data().password === hashed) {
+    await signInAnonymously(auth);
     enterApp(hosp);
   } else {
     err.textContent = '⚠ パスワードが正しくありません';
@@ -1339,8 +1363,8 @@ async function renderPatientSelectList() {
           <div style="display:flex; align-items:center;">
             <span class="pat-num">#${p.id}</span>
             <div>
-              <div class="pat-name">${p.hospital}</div>
-              <div class="pat-sub">${dLabel(p)} ／ MODE: ${p.mode}</div>
+              <div class="pat-name">${esc(p.hospital)}</div>
+              <div class="pat-sub">${esc(dLabel(p))} ／ MODE: ${esc(p.mode)}</div>
             </div>
           </div>
           <div style="text-align:right;">
@@ -1377,8 +1401,8 @@ window.selectPatient = async function(id) {
       }).join('');
     document.getElementById('add-data-info').innerHTML = `
       <div class="alert alert-info" style="margin-bottom:16px;">
-        <strong>${p.hospital}</strong> ／ 疾患: ${dLabel(p)} ／ MODE: ${p.mode}<br>
-        <span style="font-size:.8rem;">AR SN: ${p.snAR||'─'} ／ VR SN: ${p.snVR||'─'}</span>
+        <strong>${esc(p.hospital)}</strong> ／ 疾患: ${esc(dLabel(p))} ／ MODE: ${esc(p.mode)}<br>
+        <span style="font-size:.8rem;">AR SN: ${esc(p.snAR||'─')} ／ VR SN: ${esc(p.snVR||'─')}</span>
       </div>`;
     document.getElementById('add-data-fields').innerHTML = '<div id="m-inner"></div>';
     buildMeasureFields('m-inner', inclBat);
@@ -1448,9 +1472,9 @@ async function showFacilityView(hosp) {
         return `
           <div class="pt-progress-row">
             <div class="p-num">#${p.id}</div>
-            <div class="p-info"><div class="sub">AR: ${p.snAR||'─'}</div><div class="sub">VR: ${p.snVR||'─'}</div></div>
-            <div style="text-align:center;"><span class="p-mode ${modeCls}">${p.mode}</span></div>
-            <div style="font-size:.83rem;font-weight:600;">${dLabel(p)}</div>
+            <div class="p-info"><div class="sub">AR: ${esc(p.snAR||'─')}</div><div class="sub">VR: ${esc(p.snVR||'─')}</div></div>
+            <div style="text-align:center;"><span class="p-mode ${modeCls}">${esc(p.mode)}</span></div>
+            <div style="font-size:.83rem;font-weight:600;">${esc(dLabel(p))}</div>
             <div class="tp-cells">
               <div class="tp-cell"><span class="tp-lbl">退院時</span>${tp('discharge')}</div>
               <div class="tp-cell"><span class="tp-lbl">外来時</span>${tp('outpatient')}</div>
@@ -1483,7 +1507,7 @@ window.doLookup = async function() {
     document.getElementById('lr-num').textContent      = `#${p.id}`;
     document.getElementById('lr-hospital').textContent = p.hospital;
     document.getElementById('lr-sub').textContent      =
-      `疾患: ${dLabel(p)} ／ MODE: ${p.mode} ／ AR SN: ${p.snAR||'─'} ／ VR SN: ${p.snVR||'─'}`;
+      `疾患: ${esc(dLabel(p))} ／ MODE: ${esc(p.mode)} ／ AR SN: ${esc(p.snAR||'─')} ／ VR SN: ${esc(p.snVR||'─')}`;
     document.getElementById('lr-chips').innerHTML =
       ['discharge','outpatient','threeMonth'].map(tp => {
         const done=!!p[tp];
