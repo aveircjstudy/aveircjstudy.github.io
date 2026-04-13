@@ -700,31 +700,36 @@
     <button class="back-btn" onclick="goto('screen-welcome')">◀ メニューへ戻る</button>
     <div class="card">
       <div class="card-title">🏥 施設別進捗確認</div>
-
-      <!-- Step indicator -->
-      <div class="step-indicator" id="fl-steps">
-        <div class="step-dot active" id="fl-step1">STEP 1<br>施設名入力</div>
-        <div class="step-dot"        id="fl-step2">STEP 2<br>パスワード</div>
-      </div>
-
       <div class="alert alert-error" id="fl-error"></div>
 
-      <!-- Step 1: 施設名 -->
-      <div id="fl-s1">
-        <div class="form-group">
-          <label class="form-label">施設名を入力してください</label>
-          <input type="text" id="fl-hosp" placeholder="例: 東京大学附属病院"
-                 onkeydown="if(event.key==='Enter')flNext()">
-        </div>
-        <div class="btn-row">
-          <button class="btn btn-blue btn-full" onclick="flNext()">次へ →</button>
-        </div>
+      <!-- Step 0: 選択 -->
+      <div id="fl-s0">
+        <p style="font-size:.88rem;color:var(--text-sub);margin-bottom:18px;">該当する方を選択してください。</p>
+        <button class="menu-btn orange" onclick="flShowNew()">
+          <div class="mb-icon orange">✚</div>
+          <div class="mb-text">
+            <h3>初回施設登録</h3>
+            <p>初めてこのシステムを使う施設の方はこちら</p>
+          </div>
+        </button>
+        <button class="menu-btn" onclick="flShowExist()">
+          <div class="mb-icon blue">🔑</div>
+          <div class="mb-text">
+            <h3>登録済施設ログイン</h3>
+            <p>すでに施設登録済みの方はこちら</p>
+          </div>
+        </button>
       </div>
 
-      <!-- Step 2a: 初回パスワード設定 -->
-      <div id="fl-s2-new" style="display:none;">
+      <!-- Step 1a: 初回登録 -->
+      <div id="fl-s1-new" style="display:none;">
+        <button class="back-btn" onclick="flShowStep0()" style="margin-bottom:12px;">◀ 選択に戻る</button>
         <div class="alert alert-info" style="margin-bottom:16px;">
-          🎉 <strong id="fl-hosp-name-new"></strong> の初回登録です。<br>パスワードを設定してください。
+          初めて使用する施設名と、施設専用パスワードを設定してください。
+        </div>
+        <div class="form-group">
+          <label class="form-label">施設名</label>
+          <input type="text" id="fl-hosp-new" placeholder="例: 東京大学附属病院">
         </div>
         <div class="form-group">
           <label class="form-label">新しいパスワード</label>
@@ -743,15 +748,18 @@
                  onkeydown="if(event.key==='Enter')flRegister()">
         </div>
         <div class="btn-row">
-          <button class="btn btn-gray" onclick="flBack()">◀ 戻る</button>
-          <button class="btn btn-blue" onclick="flRegister()" style="flex:2;">パスワードを設定して入室</button>
+          <button class="btn btn-orange btn-full" onclick="flRegister()">施設登録して入室 →</button>
         </div>
       </div>
 
-      <!-- Step 2b: 既存パスワード入力 -->
-      <div id="fl-s2-exist" style="display:none;">
-        <div class="alert alert-info" style="margin-bottom:16px;">
-          <strong id="fl-hosp-name-exist"></strong> のパスワードを入力してください。
+      <!-- Step 1b: 登録済ログイン -->
+      <div id="fl-s1-exist" style="display:none;">
+        <button class="back-btn" onclick="flShowStep0()" style="margin-bottom:12px;">◀ 選択に戻る</button>
+        <div class="form-group">
+          <label class="form-label">施設を選択</label>
+          <select id="fl-hosp-select">
+            <option value="">選択してください</option>
+          </select>
         </div>
         <div class="form-group">
           <label class="form-label">パスワード</label>
@@ -759,8 +767,7 @@
                  onkeydown="if(event.key==='Enter')flLogin()">
         </div>
         <div class="btn-row">
-          <button class="btn btn-gray" onclick="flBack()">◀ 戻る</button>
-          <button class="btn btn-blue" onclick="flLogin()" style="flex:2;">ログイン</button>
+          <button class="btn btn-blue btn-full" onclick="flLogin()">ログイン →</button>
         </div>
       </div>
     </div>
@@ -1174,47 +1181,50 @@ let _flHosp = '';
 
 function gotoFacilityLogin() {
   hideErr('fl-error');
-  document.getElementById('fl-hosp').value = '';
-  document.getElementById('fl-pw-new').value = '';
-  document.getElementById('fl-pw-confirm').value = '';
-  document.getElementById('fl-pw-exist').value = '';
-  showFlStep(1);
+  ['fl-hosp-new','fl-pw-new','fl-pw-confirm','fl-pw-exist'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.value = '';
+  });
+  checkPwRules();
+  flShowStep0();
   goto('screen-facility-login');
-  setTimeout(() => document.getElementById('fl-hosp').focus(), 100);
 }
 
-function showFlStep(n) {
-  document.getElementById('fl-s1').style.display        = n===1 ? 'block' : 'none';
-  document.getElementById('fl-s2-new').style.display    = n===2 ? 'block' : 'none';
-  document.getElementById('fl-s2-exist').style.display  = n===3 ? 'block' : 'none';
-  document.getElementById('fl-step1').className = 'step-dot ' + (n===1 ? 'active' : 'done');
-  document.getElementById('fl-step2').className = 'step-dot ' + (n>1  ? 'active' : '');
-}
-
-function flBack() { hideErr('fl-error'); showFlStep(1); }
-
-function flNext() {
+function flShowStep0() {
   hideErr('fl-error');
-  const hosp = document.getElementById('fl-hosp').value.trim();
-  if (!hosp) { showErr('fl-error', '施設名を入力してください'); return; }
-  _flHosp = hosp;
+  document.getElementById('fl-s0').style.display       = 'block';
+  document.getElementById('fl-s1-new').style.display   = 'none';
+  document.getElementById('fl-s1-exist').style.display = 'none';
+}
+
+function flShowNew() {
+  hideErr('fl-error');
+  document.getElementById('fl-s0').style.display       = 'none';
+  document.getElementById('fl-s1-new').style.display   = 'block';
+  document.getElementById('fl-s1-exist').style.display = 'none';
+  setTimeout(() => document.getElementById('fl-hosp-new').focus(), 100);
+}
+
+function flShowExist() {
+  hideErr('fl-error');
   const pws = loadFacilityPW();
-  if (pws[hosp]) {
-    // 既存施設 → パスワード入力
-    document.getElementById('fl-hosp-name-exist').textContent = hosp;
-    showFlStep(3);
-    setTimeout(() => document.getElementById('fl-pw-exist').focus(), 100);
-  } else {
-    // 初回 → パスワード設定
-    document.getElementById('fl-hosp-name-new').textContent = hosp;
-    checkPwRules();
-    showFlStep(2);
-    setTimeout(() => document.getElementById('fl-pw-new').focus(), 100);
+  const registered = Object.keys(pws);
+  if (!registered.length) {
+    showErr('fl-error', '登録済みの施設がありません。まず「初回施設登録」を行ってください。');
+    return;
   }
+  const sel = document.getElementById('fl-hosp-select');
+  sel.innerHTML = '<option value="">施設を選択してください</option>' +
+    registered.map(h => `<option value="${h}">${h}</option>`).join('');
+  document.getElementById('fl-pw-exist').value = '';
+  document.getElementById('fl-s0').style.display       = 'none';
+  document.getElementById('fl-s1-new').style.display   = 'none';
+  document.getElementById('fl-s1-exist').style.display = 'block';
+  setTimeout(() => sel.focus(), 100);
 }
 
 function checkPwRules() {
-  const pw = document.getElementById('fl-pw-new').value;
+  const el = document.getElementById('fl-pw-new');
+  const pw = el ? el.value : '';
   const rules = {
     'rule-len':   pw.length >= 8,
     'rule-upper': /[A-Z]/.test(pw),
@@ -1222,31 +1232,39 @@ function checkPwRules() {
     'rule-num':   /[0-9]/.test(pw),
   };
   Object.entries(rules).forEach(([id, ok]) => {
-    document.getElementById(id).className = 'pw-rule' + (ok ? ' ok' : '');
+    const el2 = document.getElementById(id);
+    if (el2) el2.className = 'pw-rule' + (ok ? ' ok' : '');
   });
   return Object.values(rules).every(Boolean);
 }
 
 function flRegister() {
   hideErr('fl-error');
+  const hosp = document.getElementById('fl-hosp-new').value.trim();
+  if (!hosp) { showErr('fl-error', '施設名を入力してください'); return; }
+  const pws = loadFacilityPW();
+  if (pws[hosp]) { showErr('fl-error', 'この施設名はすでに登録されています。「登録済施設ログイン」をご利用ください。'); return; }
   if (!checkPwRules()) { showErr('fl-error', 'パスワードの条件を全て満たしてください'); return; }
   const pw1 = document.getElementById('fl-pw-new').value;
   const pw2 = document.getElementById('fl-pw-confirm').value;
   if (pw1 !== pw2) { showErr('fl-error', 'パスワードが一致しません'); return; }
-  const pws = loadFacilityPW();
-  pws[_flHosp] = pw1;
+  pws[hosp] = pw1;
   saveFacilityPW(pws);
-  sessionStorage.setItem('facility_authed', _flHosp);
-  showFacilityView(_flHosp);
+  _flHosp = hosp;
+  sessionStorage.setItem('facility_authed', hosp);
+  showFacilityView(hosp);
 }
 
 function flLogin() {
   hideErr('fl-error');
+  const hosp = document.getElementById('fl-hosp-select').value;
   const pw   = document.getElementById('fl-pw-exist').value;
+  if (!hosp) { showErr('fl-error', '施設を選択してください'); return; }
   const pws  = loadFacilityPW();
-  if (pws[_flHosp] && pws[_flHosp] === pw) {
-    sessionStorage.setItem('facility_authed', _flHosp);
-    showFacilityView(_flHosp);
+  if (pws[hosp] && pws[hosp] === pw) {
+    _flHosp = hosp;
+    sessionStorage.setItem('facility_authed', hosp);
+    showFacilityView(hosp);
   } else {
     showErr('fl-error', 'パスワードが正しくありません');
     document.getElementById('fl-pw-exist').value = '';
