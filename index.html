@@ -502,37 +502,60 @@
       position: fixed; inset: 0;
       background: linear-gradient(135deg, #1565c0 0%, #0d47a1 100%);
       display: flex; align-items: center; justify-content: center;
-      z-index: 300;
+      z-index: 300; padding: 16px;
     }
     #login-screen.hidden { display: none; }
     .login-box {
-      background: #fff;
-      border-radius: 20px;
-      padding: 48px 36px;
-      width: 360px;
-      text-align: center;
+      background: #fff; border-radius: 20px;
+      padding: 36px 32px; width: 100%; max-width: 420px;
       box-shadow: 0 16px 60px rgba(0,0,0,.3);
     }
-    .login-logo {
-      font-size: 3rem; margin-bottom: 12px;
-    }
-    .login-title {
-      font-size: 1.4rem; font-weight: 800;
-      color: var(--blue); margin-bottom: 4px;
-    }
-    .login-sub {
-      font-size: .78rem; color: var(--text-sub); margin-bottom: 28px;
-    }
-    .login-box input {
-      font-size: 1rem; padding: 12px 16px;
-      text-align: center; letter-spacing: 2px;
-      margin-bottom: 14px;
-    }
+    .login-head { text-align: center; margin-bottom: 24px; }
+    .login-logo { font-size: 2.8rem; margin-bottom: 8px; }
+    .login-title { font-size: 1.35rem; font-weight: 800; color: var(--blue); margin-bottom: 3px; }
+    .login-sub   { font-size: .75rem; color: var(--text-sub); }
     .login-err {
-      color: var(--red); font-size: .82rem;
-      font-weight: 700; margin-bottom: 12px; display: none;
+      background: var(--red-bg); color: var(--red);
+      border-left: 3px solid var(--red);
+      border-radius: 6px; padding: 9px 12px;
+      font-size: .82rem; font-weight: 700;
+      margin-bottom: 14px; display: none;
     }
     .login-err.show { display: block; }
+    .login-choice-btn {
+      width: 100%; display: flex; align-items: center; gap: 14px;
+      background: #f8fafc; border: 1.5px solid var(--border);
+      border-radius: 12px; padding: 16px 18px;
+      cursor: pointer; text-align: left; margin-bottom: 10px;
+      transition: all .15s;
+    }
+    .login-choice-btn:hover { border-color: var(--blue-lt); background: var(--blue-bg); transform: translateY(-1px); }
+    .login-choice-btn.orange:hover { border-color: var(--orange); background: var(--orange-bg); }
+    .lcb-icon { font-size: 1.6rem; width: 44px; height: 44px; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .lcb-icon.blue   { background: var(--blue-bg); }
+    .lcb-icon.orange { background: var(--orange-bg); }
+    .lcb-text h3 { font-size: .95rem; font-weight: 700; color: var(--text); margin-bottom: 2px; }
+    .lcb-text p  { font-size: .75rem; color: var(--text-sub); }
+    .login-back { background: none; border: none; color: var(--blue-lt); font-size: .82rem; font-weight: 600; cursor: pointer; padding: 0; margin-bottom: 14px; display: inline-flex; align-items: center; gap: 4px; }
+    .login-back:hover { color: var(--blue); }
+    .login-box .form-group { margin-bottom: 14px; }
+    .login-box input {
+      width: 100%; background: #f4f6f9; border: 1.5px solid var(--border);
+      border-radius: 8px; color: var(--text); padding: 10px 14px;
+      font-size: .95rem; transition: border-color .15s;
+    }
+    .login-box input:focus { outline: none; border-color: var(--blue); box-shadow: 0 0 0 3px rgba(21,101,192,.12); }
+    .login-box select {
+      width: 100%; background: #f4f6f9; border: 1.5px solid var(--border);
+      border-radius: 8px; color: var(--text); padding: 10px 14px; font-size: .95rem;
+    }
+    /* header facility badge */
+    .hdr-facility {
+      background: rgba(255,255,255,.18); border: 1px solid rgba(255,255,255,.35);
+      border-radius: 8px; padding: 4px 12px;
+      font-size: .78rem; font-weight: 700; display: none;
+    }
+    .hdr-facility.show { display: block; }
   </style>
 </head>
 <body>
@@ -540,13 +563,72 @@
 <!-- ── Login Screen ── -->
 <div id="login-screen">
   <div class="login-box">
-    <div class="login-logo">🫀</div>
-    <div class="login-title">Aveir CJ Study</div>
-    <div class="login-sub">Aveir DR（AR2＋VR）｜ 3か月短期スタディ</div>
-    <input type="password" id="login-pw" placeholder="パスワードを入力"
-           onkeydown="if(event.key==='Enter')checkLogin()">
-    <div class="login-err" id="login-err">パスワードが正しくありません</div>
-    <button class="btn btn-blue btn-full" onclick="checkLogin()">ログイン</button>
+    <div class="login-head">
+      <div class="login-logo">🫀</div>
+      <div class="login-title">Aveir CJ Study</div>
+      <div class="login-sub">Aveir DR（AR2＋VR）｜ 3か月短期スタディ</div>
+    </div>
+
+    <div class="login-err" id="login-err"></div>
+
+    <!-- Step 0: 選択 -->
+    <div id="ls-s0">
+      <button class="login-choice-btn orange" onclick="lsShowNew()">
+        <div class="lcb-icon orange">✚</div>
+        <div class="lcb-text"><h3>初回施設登録</h3><p>初めてこのシステムを使う施設の方</p></div>
+      </button>
+      <button class="login-choice-btn" onclick="lsShowExist()">
+        <div class="lcb-icon blue">🔑</div>
+        <div class="lcb-text"><h3>登録済施設ログイン</h3><p>すでに施設登録済みの方</p></div>
+      </button>
+    </div>
+
+    <!-- Step 1: 初回施設登録 -->
+    <div id="ls-s1-new" style="display:none;">
+      <button class="login-back" onclick="lsShowStep0()">◀ 戻る</button>
+      <div class="form-group">
+        <label class="form-label">スタディ認証パスワード</label>
+        <input type="password" id="ls-study-pw" placeholder="スタディパスワードを入力">
+      </div>
+      <div class="form-group">
+        <label class="form-label">施設名</label>
+        <input type="text" id="ls-hosp-new" placeholder="例: 東京大学附属病院">
+      </div>
+      <div class="form-group">
+        <label class="form-label">施設専用パスワード（新規設定）</label>
+        <input type="password" id="ls-pw-new" placeholder="8文字以上・大文字・小文字・数字を含む"
+               oninput="lsCheckPwRules()">
+        <div style="margin-top:8px;padding:10px;background:#f4f6f9;border-radius:8px;">
+          <div class="pw-rule" id="ls-rule-len">  <div class="dot"></div> 8文字以上</div>
+          <div class="pw-rule" id="ls-rule-upper"><div class="dot"></div> 英大文字（A〜Z）を含む</div>
+          <div class="pw-rule" id="ls-rule-lower"><div class="dot"></div> 英小文字（a〜z）を含む</div>
+          <div class="pw-rule" id="ls-rule-num">  <div class="dot"></div> 数字（0〜9）を含む</div>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">施設専用パスワード（確認）</label>
+        <input type="password" id="ls-pw-confirm" placeholder="もう一度入力"
+               onkeydown="if(event.key==='Enter')lsRegister()">
+      </div>
+      <button class="btn btn-orange btn-full" onclick="lsRegister()">施設登録して入室 →</button>
+    </div>
+
+    <!-- Step 2: 登録済ログイン -->
+    <div id="ls-s1-exist" style="display:none;">
+      <button class="login-back" onclick="lsShowStep0()">◀ 戻る</button>
+      <div class="form-group">
+        <label class="form-label">施設を選択</label>
+        <select id="ls-hosp-select">
+          <option value="">選択してください</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">施設専用パスワード</label>
+        <input type="password" id="ls-pw-exist" placeholder="パスワードを入力"
+               onkeydown="if(event.key==='Enter')lsLogin()">
+      </div>
+      <button class="btn btn-blue btn-full" onclick="lsLogin()">ログイン →</button>
+    </div>
   </div>
 </div>
 
@@ -557,6 +639,7 @@
     <h1>Aveir CJ Study</h1>
     <p>Aveir DR（AR2＋VR）｜ 3か月短期スタディ データ収集</p>
   </div>
+  <div class="hdr-facility" id="hdr-facility-badge"></div>
 </header>
 
 <div class="container">
@@ -845,29 +928,131 @@
 
 <script>
 // ═══════════════════════════════════════════════════
-//  ★ パスワードをここで変更できます
+//  定数
 // ═══════════════════════════════════════════════════
-const LOGIN_PW = 'AveirCJstudy'; // サイト入室パスワード
+const STUDY_PW = 'AveirCJstudy';
 
 // ═══════════════════════════════════════════════════
-//  Login
+//  Login screen helpers
 // ═══════════════════════════════════════════════════
-function checkLogin() {
-  const pw = document.getElementById('login-pw').value;
-  if (pw === LOGIN_PW) {
-    sessionStorage.setItem('authed', '1');
-    document.getElementById('login-screen').classList.add('hidden');
+function lsShowStep0() {
+  document.getElementById('ls-s0').style.display       = 'block';
+  document.getElementById('ls-s1-new').style.display   = 'none';
+  document.getElementById('ls-s1-exist').style.display = 'none';
+  const err = document.getElementById('login-err');
+  err.textContent = ''; err.classList.remove('show');
+}
+
+function lsShowNew() {
+  document.getElementById('ls-s0').style.display       = 'none';
+  document.getElementById('ls-s1-new').style.display   = 'block';
+  document.getElementById('ls-s1-exist').style.display = 'none';
+  const err = document.getElementById('login-err');
+  err.textContent = ''; err.classList.remove('show');
+  setTimeout(() => document.getElementById('ls-study-pw').focus(), 100);
+}
+
+function lsShowExist() {
+  const pws = loadFacilityPW();
+  const registered = Object.keys(pws);
+  if (!registered.length) {
+    const err = document.getElementById('login-err');
+    err.textContent = '⚠ 登録済みの施設がありません。「初回施設登録」を行ってください。';
+    err.classList.add('show');
+    return;
+  }
+  const sel = document.getElementById('ls-hosp-select');
+  sel.innerHTML = '<option value="">選択してください</option>' +
+    registered.map(h => `<option value="${h}">${h}</option>`).join('');
+  document.getElementById('ls-pw-exist').value = '';
+  document.getElementById('ls-s0').style.display       = 'none';
+  document.getElementById('ls-s1-new').style.display   = 'none';
+  document.getElementById('ls-s1-exist').style.display = 'block';
+  const err = document.getElementById('login-err');
+  err.textContent = ''; err.classList.remove('show');
+  setTimeout(() => sel.focus(), 100);
+}
+
+function lsCheckPwRules() {
+  const el = document.getElementById('ls-pw-new');
+  const pw = el ? el.value : '';
+  const rules = {
+    'ls-rule-len':   pw.length >= 8,
+    'ls-rule-upper': /[A-Z]/.test(pw),
+    'ls-rule-lower': /[a-z]/.test(pw),
+    'ls-rule-num':   /[0-9]/.test(pw),
+  };
+  Object.entries(rules).forEach(([id, ok]) => {
+    const el2 = document.getElementById(id);
+    if (el2) el2.className = 'pw-rule' + (ok ? ' ok' : '');
+  });
+  return Object.values(rules).every(Boolean);
+}
+
+function lsRegister() {
+  const err = document.getElementById('login-err');
+  err.classList.remove('show');
+  const studyPw = document.getElementById('ls-study-pw').value;
+  if (studyPw !== STUDY_PW) {
+    err.textContent = '⚠ スタディパスワードが正しくありません'; err.classList.add('show'); return;
+  }
+  const hosp = document.getElementById('ls-hosp-new').value.trim();
+  if (!hosp) {
+    err.textContent = '⚠ 施設名を入力してください'; err.classList.add('show'); return;
+  }
+  const pws = loadFacilityPW();
+  if (pws[hosp]) {
+    err.textContent = '⚠ この施設名はすでに登録されています。「登録済施設ログイン」をご利用ください。';
+    err.classList.add('show'); return;
+  }
+  if (!lsCheckPwRules()) {
+    err.textContent = '⚠ パスワードの条件を全て満たしてください'; err.classList.add('show'); return;
+  }
+  const pw1 = document.getElementById('ls-pw-new').value;
+  const pw2 = document.getElementById('ls-pw-confirm').value;
+  if (pw1 !== pw2) {
+    err.textContent = '⚠ パスワードが一致しません'; err.classList.add('show'); return;
+  }
+  pws[hosp] = pw1;
+  saveFacilityPW(pws);
+  enterApp(hosp);
+}
+
+function lsLogin() {
+  const err = document.getElementById('login-err');
+  err.classList.remove('show');
+  const hosp = document.getElementById('ls-hosp-select').value;
+  const pw   = document.getElementById('ls-pw-exist').value;
+  if (!hosp) {
+    err.textContent = '⚠ 施設を選択してください'; err.classList.add('show'); return;
+  }
+  const pws = loadFacilityPW();
+  if (pws[hosp] && pws[hosp] === pw) {
+    enterApp(hosp);
   } else {
-    document.getElementById('login-err').classList.add('show');
-    document.getElementById('login-pw').value = '';
-    document.getElementById('login-pw').focus();
+    err.textContent = '⚠ パスワードが正しくありません';
+    err.classList.add('show');
+    document.getElementById('ls-pw-exist').value = '';
+    document.getElementById('ls-pw-exist').focus();
   }
 }
+
+function enterApp(facility) {
+  sessionStorage.setItem('authed', '1');
+  sessionStorage.setItem('fl_facility', facility);
+  document.getElementById('login-screen').classList.add('hidden');
+  const badge = document.getElementById('hdr-facility-badge');
+  if (badge) { badge.textContent = '🏥 ' + facility; badge.classList.add('show'); }
+}
+
 // ページ読み込み時：すでに認証済みならログイン画面をスキップ
 if (sessionStorage.getItem('authed') === '1') {
   document.getElementById('login-screen').classList.add('hidden');
+  const fac = sessionStorage.getItem('fl_facility');
+  const badge = document.getElementById('hdr-facility-badge');
+  if (badge && fac) { badge.textContent = '🏥 ' + fac; badge.classList.add('show'); }
 } else {
-  setTimeout(() => document.getElementById('login-pw').focus(), 100);
+  lsShowStep0();
 }
 
 // ═══════════════════════════════════════════════════
@@ -1180,13 +1365,12 @@ function saveFacilityPW(obj) { localStorage.setItem(FL_KEY, JSON.stringify(obj))
 let _flHosp = '';
 
 function gotoFacilityLogin() {
-  hideErr('fl-error');
-  ['fl-hosp-new','fl-pw-new','fl-pw-confirm','fl-pw-exist'].forEach(id => {
-    const el = document.getElementById(id); if (el) el.value = '';
-  });
-  checkPwRules();
-  flShowStep0();
-  goto('screen-facility-login');
+  const fac = sessionStorage.getItem('fl_facility');
+  if (fac) {
+    showFacilityView(fac);
+  } else {
+    goto('screen-facility-login');
+  }
 }
 
 function flShowStep0() {
