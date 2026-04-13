@@ -401,6 +401,81 @@
     .pin-actions { display: flex; gap: 8px; }
     .pin-actions .btn { flex: 1; }
 
+    /* ─── Teal (facility button) ─── */
+    .menu-btn.teal:hover { border-color: #00695c; box-shadow: 0 4px 16px rgba(0,105,92,.12); }
+    .mb-icon.teal { background: #e0f2f1; }
+
+    /* ─── Facility login steps ─── */
+    .step-indicator {
+      display: flex; gap: 0; margin-bottom: 20px;
+    }
+    .step-dot {
+      flex: 1; text-align: center; padding: 8px 4px;
+      font-size: .75rem; font-weight: 700; color: var(--text-sub);
+      border-bottom: 3px solid var(--border);
+    }
+    .step-dot.active { color: var(--blue); border-color: var(--blue); }
+    .step-dot.done   { color: var(--green); border-color: var(--green); }
+
+    .pw-rule {
+      display: flex; align-items: center; gap: 6px;
+      font-size: .78rem; padding: 3px 0;
+    }
+    .pw-rule .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--border); flex-shrink: 0; }
+    .pw-rule.ok .dot { background: var(--green); }
+    .pw-rule.ok { color: var(--green); }
+
+    /* ─── Facility view ─── */
+    .fv-stat-row {
+      display: grid; grid-template-columns: repeat(4,1fr); gap: 10px; margin-bottom: 18px;
+    }
+    .fv-stat {
+      background: var(--bg); border: 1px solid var(--border);
+      border-radius: 10px; padding: 14px; text-align: center;
+    }
+    .fv-stat .val { font-size: 2rem; font-weight: 900; line-height: 1; margin-bottom: 3px; }
+    .fv-stat .lbl { font-size: .72rem; font-weight: 700; color: var(--text-sub); }
+    .fv-blue   { color: var(--blue); }
+    .fv-green  { color: var(--green); }
+    .fv-orange { color: var(--orange); }
+    .fv-red    { color: var(--red); }
+
+    .pt-progress-row {
+      background: #fff; border: 1px solid var(--border); border-radius: 10px;
+      padding: 14px 18px; margin-bottom: 9px;
+      display: grid;
+      grid-template-columns: 54px 1fr 88px 88px 72px 72px 72px;
+      align-items: center; gap: 10px;
+      box-shadow: 0 1px 4px rgba(0,0,0,.05);
+      transition: box-shadow .15s;
+    }
+    .pt-progress-row:hover { box-shadow: 0 3px 12px rgba(21,101,192,.1); border-color: #a0c8f0; }
+    .p-num { font-size: 1.25rem; font-weight: 900; color: var(--orange); }
+    .p-info .name { font-weight: 700; font-size: .9rem; }
+    .p-info .sub  { font-size: .73rem; color: var(--text-sub); margin-top: 1px; }
+    .p-mode { display: inline-block; padding: 3px 9px; border-radius: 6px; font-size: .75rem; font-weight: 700; text-align: center; }
+    .p-mode.ddd { background: var(--blue-bg); color: var(--blue); }
+    .p-mode.aai { background: var(--orange-bg); color: var(--orange); }
+    .tp-cell { display: flex; flex-direction: column; align-items: center; gap: 3px; }
+    .tp-cell .tp-lbl { font-size: .62rem; font-weight: 700; color: var(--text-sub); }
+    .tp-mark {
+      width: 32px; height: 32px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.1rem; font-weight: 900;
+    }
+    .tp-mark.done { background: var(--green-bg); color: var(--green); }
+    .tp-mark.pend { background: #f0f4f8; color: #c0d0db; border: 2px dashed #c8d6e4; }
+
+    .col-header-row {
+      display: grid;
+      grid-template-columns: 54px 1fr 88px 88px 72px 72px 72px;
+      gap: 10px; padding: 0 0 8px;
+      font-size: .72rem; font-weight: 700; color: var(--text-sub);
+      border-bottom: 1px solid var(--border); margin-bottom: 10px;
+      align-items: center;
+    }
+    .col-header-row .tc { text-align: center; }
+
     /* ─── Admin footer link ─── */
     .admin-link {
       display: block; text-align: center;
@@ -514,6 +589,14 @@
           <p>デバイス SN を入力して患者番号・入力状況を確認します</p>
         </div>
       </button>
+
+      <button class="menu-btn teal" onclick="gotoFacilityLogin()">
+        <div class="mb-icon teal">🏥</div>
+        <div class="mb-text">
+          <h3>施設別進捗確認</h3>
+          <p>自施設の患者一覧・データ収集状況を確認します</p>
+        </div>
+      </button>
     </div>
   </div>
 
@@ -609,6 +692,104 @@
       <div class="btn-row">
         <button class="btn btn-blue btn-full" onclick="submitAddData()">📤 データを登録する</button>
       </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════ FACILITY LOGIN ═══════════════════ -->
+  <div id="screen-facility-login" class="screen">
+    <button class="back-btn" onclick="goto('screen-welcome')">◀ メニューへ戻る</button>
+    <div class="card">
+      <div class="card-title">🏥 施設別進捗確認</div>
+
+      <!-- Step indicator -->
+      <div class="step-indicator" id="fl-steps">
+        <div class="step-dot active" id="fl-step1">STEP 1<br>施設名入力</div>
+        <div class="step-dot"        id="fl-step2">STEP 2<br>パスワード</div>
+      </div>
+
+      <div class="alert alert-error" id="fl-error"></div>
+
+      <!-- Step 1: 施設名 -->
+      <div id="fl-s1">
+        <div class="form-group">
+          <label class="form-label">施設名を入力してください</label>
+          <input type="text" id="fl-hosp" placeholder="例: 東京大学附属病院"
+                 onkeydown="if(event.key==='Enter')flNext()">
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-blue btn-full" onclick="flNext()">次へ →</button>
+        </div>
+      </div>
+
+      <!-- Step 2a: 初回パスワード設定 -->
+      <div id="fl-s2-new" style="display:none;">
+        <div class="alert alert-info" style="margin-bottom:16px;">
+          🎉 <strong id="fl-hosp-name-new"></strong> の初回登録です。<br>パスワードを設定してください。
+        </div>
+        <div class="form-group">
+          <label class="form-label">新しいパスワード</label>
+          <input type="password" id="fl-pw-new" placeholder="8文字以上・大文字・小文字・数字を含む"
+                 oninput="checkPwRules()" onkeydown="if(event.key==='Enter')flRegister()">
+          <div style="margin-top:10px; padding:10px; background:var(--bg); border-radius:8px;">
+            <div class="pw-rule" id="rule-len">  <div class="dot"></div> 8文字以上</div>
+            <div class="pw-rule" id="rule-upper"><div class="dot"></div> 英大文字（A〜Z）を含む</div>
+            <div class="pw-rule" id="rule-lower"><div class="dot"></div> 英小文字（a〜z）を含む</div>
+            <div class="pw-rule" id="rule-num">  <div class="dot"></div> 数字（0〜9）を含む</div>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">パスワード確認</label>
+          <input type="password" id="fl-pw-confirm" placeholder="もう一度入力"
+                 onkeydown="if(event.key==='Enter')flRegister()">
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-gray" onclick="flBack()">◀ 戻る</button>
+          <button class="btn btn-blue" onclick="flRegister()" style="flex:2;">パスワードを設定して入室</button>
+        </div>
+      </div>
+
+      <!-- Step 2b: 既存パスワード入力 -->
+      <div id="fl-s2-exist" style="display:none;">
+        <div class="alert alert-info" style="margin-bottom:16px;">
+          <strong id="fl-hosp-name-exist"></strong> のパスワードを入力してください。
+        </div>
+        <div class="form-group">
+          <label class="form-label">パスワード</label>
+          <input type="password" id="fl-pw-exist" placeholder="パスワードを入力"
+                 onkeydown="if(event.key==='Enter')flLogin()">
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-gray" onclick="flBack()">◀ 戻る</button>
+          <button class="btn btn-blue" onclick="flLogin()" style="flex:2;">ログイン</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════ FACILITY VIEW ═══════════════════ -->
+  <div id="screen-facility-view" class="screen">
+    <button class="back-btn" onclick="goto('screen-welcome')">◀ メニューへ戻る</button>
+    <div class="card">
+      <div class="card-title">
+        🏥 <span id="fv-title">施設名</span> ─ 進捗一覧
+      </div>
+
+      <!-- Stats -->
+      <div class="fv-stat-row" id="fv-stats"></div>
+
+      <!-- Column headers -->
+      <div class="col-header-row">
+        <div>#</div>
+        <div>シリアル番号</div>
+        <div class="tc">MODE</div>
+        <div>疾患</div>
+        <div class="tc">①退院時</div>
+        <div class="tc">②外来時</div>
+        <div class="tc">③3か月後</div>
+      </div>
+
+      <!-- Patient list -->
+      <div id="fv-list"></div>
     </div>
   </div>
 
@@ -977,6 +1158,147 @@ function showConfirm(id, title, msg) {
   document.getElementById('conf-title').textContent = title;
   document.getElementById('conf-msg').innerHTML     = msg.replace(/\n/g,'<br>');
   goto('screen-confirmation');
+}
+
+// ═══════════════════════════════════════════════════
+//  Facility Portal
+// ═══════════════════════════════════════════════════
+const FL_KEY = 'aveir_facility_pw'; // { '施設名': 'パスワード' }
+
+function loadFacilityPW() {
+  try { return JSON.parse(localStorage.getItem(FL_KEY)) || {}; } catch { return {}; }
+}
+function saveFacilityPW(obj) { localStorage.setItem(FL_KEY, JSON.stringify(obj)); }
+
+let _flHosp = '';
+
+function gotoFacilityLogin() {
+  hideErr('fl-error');
+  document.getElementById('fl-hosp').value = '';
+  document.getElementById('fl-pw-new').value = '';
+  document.getElementById('fl-pw-confirm').value = '';
+  document.getElementById('fl-pw-exist').value = '';
+  showFlStep(1);
+  goto('screen-facility-login');
+  setTimeout(() => document.getElementById('fl-hosp').focus(), 100);
+}
+
+function showFlStep(n) {
+  document.getElementById('fl-s1').style.display        = n===1 ? 'block' : 'none';
+  document.getElementById('fl-s2-new').style.display    = n===2 ? 'block' : 'none';
+  document.getElementById('fl-s2-exist').style.display  = n===3 ? 'block' : 'none';
+  document.getElementById('fl-step1').className = 'step-dot ' + (n===1 ? 'active' : 'done');
+  document.getElementById('fl-step2').className = 'step-dot ' + (n>1  ? 'active' : '');
+}
+
+function flBack() { hideErr('fl-error'); showFlStep(1); }
+
+function flNext() {
+  hideErr('fl-error');
+  const hosp = document.getElementById('fl-hosp').value.trim();
+  if (!hosp) { showErr('fl-error', '施設名を入力してください'); return; }
+  _flHosp = hosp;
+  const pws = loadFacilityPW();
+  if (pws[hosp]) {
+    // 既存施設 → パスワード入力
+    document.getElementById('fl-hosp-name-exist').textContent = hosp;
+    showFlStep(3);
+    setTimeout(() => document.getElementById('fl-pw-exist').focus(), 100);
+  } else {
+    // 初回 → パスワード設定
+    document.getElementById('fl-hosp-name-new').textContent = hosp;
+    checkPwRules();
+    showFlStep(2);
+    setTimeout(() => document.getElementById('fl-pw-new').focus(), 100);
+  }
+}
+
+function checkPwRules() {
+  const pw = document.getElementById('fl-pw-new').value;
+  const rules = {
+    'rule-len':   pw.length >= 8,
+    'rule-upper': /[A-Z]/.test(pw),
+    'rule-lower': /[a-z]/.test(pw),
+    'rule-num':   /[0-9]/.test(pw),
+  };
+  Object.entries(rules).forEach(([id, ok]) => {
+    document.getElementById(id).className = 'pw-rule' + (ok ? ' ok' : '');
+  });
+  return Object.values(rules).every(Boolean);
+}
+
+function flRegister() {
+  hideErr('fl-error');
+  if (!checkPwRules()) { showErr('fl-error', 'パスワードの条件を全て満たしてください'); return; }
+  const pw1 = document.getElementById('fl-pw-new').value;
+  const pw2 = document.getElementById('fl-pw-confirm').value;
+  if (pw1 !== pw2) { showErr('fl-error', 'パスワードが一致しません'); return; }
+  const pws = loadFacilityPW();
+  pws[_flHosp] = pw1;
+  saveFacilityPW(pws);
+  sessionStorage.setItem('facility_authed', _flHosp);
+  showFacilityView(_flHosp);
+}
+
+function flLogin() {
+  hideErr('fl-error');
+  const pw   = document.getElementById('fl-pw-exist').value;
+  const pws  = loadFacilityPW();
+  if (pws[_flHosp] && pws[_flHosp] === pw) {
+    sessionStorage.setItem('facility_authed', _flHosp);
+    showFacilityView(_flHosp);
+  } else {
+    showErr('fl-error', 'パスワードが正しくありません');
+    document.getElementById('fl-pw-exist').value = '';
+    document.getElementById('fl-pw-exist').focus();
+  }
+}
+
+function showFacilityView(hosp) {
+  const db = loadDB();
+  const ps = db.patients.filter(p => p.hospital === hosp);
+
+  document.getElementById('fv-title').textContent = hosp;
+
+  // Stats
+  const total    = ps.length;
+  const complete = ps.filter(p => p.threeMonth).length;
+  const inFollow = ps.filter(p => p.discharge && !p.threeMonth).length;
+  const waiting  = ps.filter(p => p.outpatient && !p.threeMonth).length;
+  document.getElementById('fv-stats').innerHTML = `
+    <div class="fv-stat"><div class="val fv-blue">${total}</div><div class="lbl">登録患者数 N</div></div>
+    <div class="fv-stat"><div class="val fv-green">${complete}</div><div class="lbl">全完了</div></div>
+    <div class="fv-stat"><div class="val fv-orange">${inFollow}</div><div class="lbl">フォロー中</div></div>
+    <div class="fv-stat"><div class="val fv-red">${waiting}</div><div class="lbl">外来時待ち</div></div>
+  `;
+
+  // Patient list
+  if (!ps.length) {
+    document.getElementById('fv-list').innerHTML =
+      '<div style="text-align:center;color:var(--text-sub);padding:30px;">この施設の登録患者はいません</div>';
+  } else {
+    document.getElementById('fv-list').innerHTML = ps.map(p => {
+      const modeCls = p.mode === 'DDD' ? 'ddd' : 'aai';
+      const tp = (key) => p[key]
+        ? `<div class="tp-mark done">✓</div>`
+        : `<div class="tp-mark pend"></div>`;
+      return `
+        <div class="pt-progress-row">
+          <div class="p-num">#${p.id}</div>
+          <div class="p-info">
+            <div class="sub">AR: ${p.snAR||'─'}</div>
+            <div class="sub">VR: ${p.snVR||'─'}</div>
+          </div>
+          <div style="text-align:center;"><span class="p-mode ${modeCls}">${p.mode}</span></div>
+          <div style="font-size:.83rem;font-weight:600;">${dLabel(p)}</div>
+          <div class="tp-cell"><span class="tp-lbl">退院時</span>${tp('discharge')}</div>
+          <div class="tp-cell"><span class="tp-lbl">外来時</span>${tp('outpatient')}</div>
+          <div class="tp-cell"><span class="tp-lbl">3か月後</span>${tp('threeMonth')}</div>
+        </div>`;
+    }).join('');
+  }
+
+  goto('screen-facility-view');
 }
 
 // ═══════════════════════════════════════════════════
