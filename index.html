@@ -928,7 +928,55 @@
 
 </div><!-- /container -->
 
-<script>
+<script type="module">
+// ═══════════════════════════════════════════════════
+//  Firebase
+// ═══════════════════════════════════════════════════
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.12.0/firebase-app.js";
+import { getFirestore, collection, doc, getDoc, setDoc, updateDoc, getDocs, query, orderBy, runTransaction }
+  from "https://www.gstatic.com/firebasejs/12.12.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyD92ndAO-95l4r7TwjwNplVs5XTWHifHfU",
+  authDomain: "aveircjstudy.firebaseapp.com",
+  projectId: "aveircjstudy",
+  storageBucket: "aveircjstudy.firebasestorage.app",
+  messagingSenderId: "1002437043226",
+  appId: "1:1002437043226:web:80917b2fcb27549d2fdda3"
+};
+const firebaseApp = initializeApp(firebaseConfig);
+const db = getFirestore(firebaseApp);
+
+// ═══════════════════════════════════════════════════
+//  Firestore helpers
+// ═══════════════════════════════════════════════════
+async function getAllPatients() {
+  const snap = await getDocs(query(collection(db, 'patients'), orderBy('id')));
+  return snap.docs.map(d => d.data());
+}
+async function savePatient(patient) {
+  await setDoc(doc(db, 'patients', String(patient.id)), patient);
+}
+async function getNextPatientId() {
+  const ref = doc(db, 'meta', 'counter');
+  let newId;
+  await runTransaction(db, async tx => {
+    const snap = await tx.get(ref);
+    newId = snap.exists() ? (snap.data().nextId || 1) : 1;
+    tx.set(ref, { nextId: newId + 1 });
+  });
+  return newId;
+}
+async function loadFacilityPW() {
+  const snap = await getDocs(collection(db, 'facilities'));
+  const r = {};
+  snap.docs.forEach(d => { r[d.id] = d.data().password; });
+  return r;
+}
+async function saveFacility(name, password) {
+  await setDoc(doc(db, 'facilities', name), { password, createdAt: new Date().toISOString() });
+}
+
 // ═══════════════════════════════════════════════════
 //  定数
 // ═══════════════════════════════════════════════════
@@ -937,25 +985,25 @@ const STUDY_PW = 'AveirCJstudy';
 // ═══════════════════════════════════════════════════
 //  Login screen helpers
 // ═══════════════════════════════════════════════════
-function lsShowStep0() {
+window.lsShowStep0 = function() {
   document.getElementById('ls-s0').style.display       = 'block';
   document.getElementById('ls-s1-new').style.display   = 'none';
   document.getElementById('ls-s1-exist').style.display = 'none';
   const err = document.getElementById('login-err');
   err.textContent = ''; err.classList.remove('show');
-}
+};
 
-function lsShowNew() {
+window.lsShowNew = function() {
   document.getElementById('ls-s0').style.display       = 'none';
   document.getElementById('ls-s1-new').style.display   = 'block';
   document.getElementById('ls-s1-exist').style.display = 'none';
   const err = document.getElementById('login-err');
   err.textContent = ''; err.classList.remove('show');
   setTimeout(() => document.getElementById('ls-study-pw').focus(), 100);
-}
+};
 
-function lsShowExist() {
-  const pws = loadFacilityPW();
+window.lsShowExist = async function() {
+  const pws = await loadFacilityPW();
   const registered = Object.keys(pws);
   if (!registered.length) {
     const err = document.getElementById('login-err');
@@ -973,9 +1021,9 @@ function lsShowExist() {
   const err = document.getElementById('login-err');
   err.textContent = ''; err.classList.remove('show');
   setTimeout(() => sel.focus(), 100);
-}
+};
 
-function lsCheckPwRules() {
+window.lsCheckPwRules = function() {
   const el = document.getElementById('ls-pw-new');
   const pw = el ? el.value : '';
   const rules = {
@@ -989,9 +1037,9 @@ function lsCheckPwRules() {
     if (el2) el2.className = 'pw-rule' + (ok ? ' ok' : '');
   });
   return Object.values(rules).every(Boolean);
-}
+};
 
-function lsRegister() {
+window.lsRegister = async function() {
   const err = document.getElementById('login-err');
   err.classList.remove('show');
   const studyPw = document.getElementById('ls-study-pw').value;
@@ -1002,12 +1050,12 @@ function lsRegister() {
   if (!hosp) {
     err.textContent = '⚠ 施設名を入力してください'; err.classList.add('show'); return;
   }
-  const pws = loadFacilityPW();
-  if (pws[hosp]) {
+  const facSnap = await getDoc(doc(db, 'facilities', hosp));
+  if (facSnap.exists()) {
     err.textContent = '⚠ この施設名はすでに登録されています。「登録済施設ログイン」をご利用ください。';
     err.classList.add('show'); return;
   }
-  if (!lsCheckPwRules()) {
+  if (!window.lsCheckPwRules()) {
     err.textContent = '⚠ パスワードの条件を全て満たしてください'; err.classList.add('show'); return;
   }
   const pw1 = document.getElementById('ls-pw-new').value;
@@ -1015,12 +1063,11 @@ function lsRegister() {
   if (pw1 !== pw2) {
     err.textContent = '⚠ パスワードが一致しません'; err.classList.add('show'); return;
   }
-  pws[hosp] = pw1;
-  saveFacilityPW(pws);
+  await saveFacility(hosp, pw1);
   enterApp(hosp);
-}
+};
 
-function lsLogin() {
+window.lsLogin = async function() {
   const err = document.getElementById('login-err');
   err.classList.remove('show');
   const hosp = document.getElementById('ls-hosp-select').value;
@@ -1028,8 +1075,8 @@ function lsLogin() {
   if (!hosp) {
     err.textContent = '⚠ 施設を選択してください'; err.classList.add('show'); return;
   }
-  const pws = loadFacilityPW();
-  if (pws[hosp] && pws[hosp] === pw) {
+  const facSnap = await getDoc(doc(db, 'facilities', hosp));
+  if (facSnap.exists() && facSnap.data().password === pw) {
     enterApp(hosp);
   } else {
     err.textContent = '⚠ パスワードが正しくありません';
@@ -1037,7 +1084,7 @@ function lsLogin() {
     document.getElementById('ls-pw-exist').value = '';
     document.getElementById('ls-pw-exist').focus();
   }
-}
+};
 
 function enterApp(facility) {
   sessionStorage.setItem('authed', '1');
@@ -1047,22 +1094,15 @@ function enterApp(facility) {
   if (badge) { badge.textContent = '🏥 ' + facility; badge.classList.add('show'); }
 }
 
-// ページ読み込み時：すでに認証済みならログイン画面をスキップ
+// ページ読み込み時
 if (sessionStorage.getItem('authed') === '1') {
   document.getElementById('login-screen').classList.add('hidden');
   const fac = sessionStorage.getItem('fl_facility');
   const badge = document.getElementById('hdr-facility-badge');
   if (badge && fac) { badge.textContent = '🏥 ' + fac; badge.classList.add('show'); }
 } else {
-  lsShowStep0();
+  window.lsShowStep0();
 }
-
-// ═══════════════════════════════════════════════════
-//  Storage
-// ═══════════════════════════════════════════════════
-const KEY = 'aveir_cj_v3';
-const loadDB = () => { try { return JSON.parse(localStorage.getItem(KEY)) || {patients:[]}; } catch { return {patients:[]}; } };
-const saveDB = db => localStorage.setItem(KEY, JSON.stringify(db));
 
 // ═══════════════════════════════════════════════════
 //  Navigation
@@ -1072,20 +1112,31 @@ function goto(id) {
   document.getElementById(id).classList.add('active');
   window.scrollTo(0,0);
 }
-function gotoNewPatient() {
+window.goto = goto;
+
+window.gotoNewPatient = function() {
   buildMeasureFields('np-measure-fields', false);
   hideErr('np-error');
-  // reset form
   ['np-hospital','np-sn-ar','np-sn-vr'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
   ['np-disease','np-mode'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
   const ow = document.getElementById('np-other-wrap');
   if (ow) ow.style.display='none';
+  // 施設名を自動入力
+  const fac = sessionStorage.getItem('fl_facility');
+  if (fac) { const h=document.getElementById('np-hospital'); if(h) h.value=fac; }
   goto('screen-new-patient');
-}
-function gotoSelectPatient() {
-  renderPatientSelectList();
+};
+
+window.gotoSelectPatient = async function() {
   goto('screen-select-patient');
-}
+  await renderPatientSelectList();
+};
+
+window.gotoFacilityLogin = function() {
+  const fac = sessionStorage.getItem('fl_facility');
+  if (fac) showFacilityView(fac);
+  else goto('screen-facility-login');
+};
 
 // ═══════════════════════════════════════════════════
 //  Error helpers
@@ -1105,10 +1156,10 @@ function hideErr(id) {
 // ═══════════════════════════════════════════════════
 //  Disease "Other" toggle
 // ═══════════════════════════════════════════════════
-function toggleOther(prefix) {
+window.toggleOther = function(prefix) {
   const val = document.getElementById(prefix+'-disease').value;
   document.getElementById(prefix+'-other-wrap').style.display = val==='other' ? 'block' : 'none';
-}
+};
 
 // ═══════════════════════════════════════════════════
 //  Build measurement fields
@@ -1116,43 +1167,30 @@ function toggleOther(prefix) {
 function buildMeasureFields(containerId, inclBat) {
   const el = document.getElementById(containerId);
   if (!el) return;
-
   const selOpts = [1,2,3,4,5,6,7].map(n=>`<option value="${n}">${n}</option>`).join('');
-
   el.innerHTML = `
-    <!-- i2i -->
     <div class="form-group">
       <div class="section-head"><span class="num-tag">4</span>i2i 設定レベル（1〜7）</div>
       <div class="av-grid three-col">
-        <div></div>
-        <div class="av-col-label">心房（A）</div>
-        <div class="av-col-label">心室（V）</div>
+        <div></div><div class="av-col-label">心房（A）</div><div class="av-col-label">心室（V）</div>
         <div class="av-row-label">i2i レベル</div>
         <select id="m-i2i-a" style="text-align:center;">${selOpts}</select>
         <select id="m-i2i-v" style="text-align:center;">${selOpts}</select>
       </div>
     </div>
-
-    <!-- Throughput -->
     <div class="form-group">
       <div class="section-head"><span class="num-tag">5</span>i2i スループット（%）</div>
       <div class="av-grid three-col">
-        <div></div>
-        <div class="av-col-label">A2V</div>
-        <div class="av-col-label">V2A</div>
+        <div></div><div class="av-col-label">A2V</div><div class="av-col-label">V2A</div>
         <div class="av-row-label">スループット</div>
         <div class="input-unit"><input type="number" id="m-tp-a2v" min="1" max="100" step="1" placeholder="80"><span class="unit">%</span></div>
         <div class="input-unit"><input type="number" id="m-tp-v2a" min="1" max="100" step="1" placeholder="90"><span class="unit">%</span></div>
       </div>
     </div>
-
-    <!-- Threshold -->
     <div class="form-group">
       <div class="section-head"><span class="num-tag">6</span>閾値データ（Capture Threshold）</div>
       <div class="av-grid three-col" style="grid-template-columns: auto 1fr 1fr;">
-        <div></div>
-        <div class="av-col-label">電圧（V）</div>
-        <div class="av-col-label">パルス幅（ms）</div>
+        <div></div><div class="av-col-label">電圧（V）</div><div class="av-col-label">パルス幅（ms）</div>
         <div class="av-row-label">心房（A）</div>
         <div class="input-unit"><input type="number" id="m-thr-av"  min="0" max="10" step="0.1" placeholder="1.5"><span class="unit">V</span></div>
         <div class="input-unit"><input type="number" id="m-thr-ams" min="0" max="2"  step="0.1" placeholder="0.4"><span class="unit">ms</span></div>
@@ -1161,41 +1199,29 @@ function buildMeasureFields(containerId, inclBat) {
         <div class="input-unit"><input type="number" id="m-thr-vms" min="0" max="2"  step="0.1" placeholder="0.4"><span class="unit">ms</span></div>
       </div>
     </div>
-
-    <!-- Amplitude -->
     <div class="form-group">
       <div class="section-head"><span class="num-tag">7</span>波高値（Sensing Amplitude）</div>
       <div class="av-grid three-col">
-        <div></div>
-        <div class="av-col-label">心房（A）</div>
-        <div class="av-col-label">心室（V）</div>
+        <div></div><div class="av-col-label">心房（A）</div><div class="av-col-label">心室（V）</div>
         <div class="av-row-label">波高値</div>
         <div class="input-unit"><input type="number" id="m-sense-a" min="0" max="50" step="0.1" placeholder="2.0"><span class="unit">mV</span></div>
         <div class="input-unit"><input type="number" id="m-sense-v" min="0" max="50" step="0.1" placeholder="8.5"><span class="unit">mV</span></div>
       </div>
     </div>
-
-    <!-- Impedance -->
     <div class="form-group">
       <div class="section-head"><span class="num-tag">8</span>インピーダンス</div>
       <div class="av-grid three-col">
-        <div></div>
-        <div class="av-col-label">心房（A）</div>
-        <div class="av-col-label">心室（V）</div>
+        <div></div><div class="av-col-label">心房（A）</div><div class="av-col-label">心室（V）</div>
         <div class="av-row-label">インピーダンス</div>
         <div class="input-unit"><input type="number" id="m-imp-a" min="0" max="3000" step="1" placeholder="300"><span class="unit">Ω</span></div>
         <div class="input-unit"><input type="number" id="m-imp-v" min="0" max="3000" step="1" placeholder="600"><span class="unit">Ω</span></div>
       </div>
     </div>
-
     ${inclBat ? `
-    <!-- Battery -->
     <div class="form-group">
       <div class="section-head"><span class="num-tag">9</span>電池寿命（推定）</div>
       <div class="av-grid three-col">
-        <div></div>
-        <div class="av-col-label">Aveir AR（心房）</div>
-        <div class="av-col-label">Aveir VR（心室）</div>
+        <div></div><div class="av-col-label">Aveir AR（心房）</div><div class="av-col-label">Aveir VR（心室）</div>
         <div class="av-row-label">推定寿命</div>
         <div class="input-unit"><input type="number" id="m-bat-a" min="0" max="25" step="0.1" placeholder="7.0"><span class="unit">年</span></div>
         <div class="input-unit"><input type="number" id="m-bat-v" min="0" max="25" step="0.1" placeholder="11.0"><span class="unit">年</span></div>
@@ -1224,32 +1250,6 @@ function collectMeasure(inclBat) {
 }
 
 // ═══════════════════════════════════════════════════
-//  New patient submit
-// ═══════════════════════════════════════════════════
-function submitNewPatient() {
-  hideErr('np-error');
-  const hospital     = document.getElementById('np-hospital').value.trim();
-  const disease      = document.getElementById('np-disease').value;
-  const diseaseOther = disease==='other' ? document.getElementById('np-disease-other').value.trim() : '';
-  const mode         = document.getElementById('np-mode').value;
-  const snAR         = document.getElementById('np-sn-ar').value.trim();
-  const snVR         = document.getElementById('np-sn-vr').value.trim();
-
-  if (!hospital)                             { showErr('np-error','病院名を入力してください'); return; }
-  if (!disease)                              { showErr('np-error','疾患を選択してください'); return; }
-  if (disease==='other' && !diseaseOther)    { showErr('np-error','疾患名を入力してください'); return; }
-  if (!mode)                                 { showErr('np-error','MODEを選択してください'); return; }
-
-  const db = loadDB();
-  const newId = db.patients.length + 1;
-  db.patients.push({ id:newId, hospital, disease, diseaseOther, mode, snAR, snVR,
-    discharge: collectMeasure(false), outpatient: null, threeMonth: null });
-  saveDB(db);
-  showConfirm(newId, '退院時データが登録されました',
-    `このデータは #${newId} として登録されました。\n次回は外来時（2〜4週後）にデータ入力をお願いします。`);
-}
-
-// ═══════════════════════════════════════════════════
 //  Patient helpers
 // ═══════════════════════════════════════════════════
 const getStatus = p => {
@@ -1258,44 +1258,85 @@ const getStatus = p => {
   if (p.discharge)  return {label:'外来データ待ち',    next:'outpatient', badge:'badge-pending'};
   return                   {label:'未入力',            next:'discharge',  badge:'badge-pending'};
 };
-const TP_LABELS  = {discharge:'① 退院時', outpatient:'② 外来時', threeMonth:'③ 3か月後'};
-const TP_TITLES  = {outpatient:'外来時（2〜4週）データ入力', threeMonth:'3か月後データ入力'};
-const TP_MSG     = {
+const TP_LABELS = {discharge:'① 退院時', outpatient:'② 外来時', threeMonth:'③ 3か月後'};
+const TP_TITLES = {outpatient:'外来時（2〜4週）データ入力', threeMonth:'3か月後データ入力'};
+const TP_MSG    = {
   outpatient: '次回は3か月後にデータ入力をお願いします。',
   threeMonth: '全ての観察期間のデータ収集が完了しました。お疲れ様でした。',
 };
-const TP_CONF    = {outpatient:'外来時データが登録されました', threeMonth:'3か月後データが登録されました'};
-const dLabel = p => p.disease==='other' ? p.diseaseOther : p.disease;
+const TP_CONF = {outpatient:'外来時データが登録されました', threeMonth:'3か月後データが登録されました'};
+const dLabel  = p => p.disease==='other' ? p.diseaseOther : p.disease;
+
+// ═══════════════════════════════════════════════════
+//  New patient submit
+// ═══════════════════════════════════════════════════
+window.submitNewPatient = async function() {
+  hideErr('np-error');
+  const hospital     = document.getElementById('np-hospital').value.trim();
+  const disease      = document.getElementById('np-disease').value;
+  const diseaseOther = disease==='other' ? document.getElementById('np-disease-other').value.trim() : '';
+  const mode         = document.getElementById('np-mode').value;
+  const snAR         = document.getElementById('np-sn-ar').value.trim();
+  const snVR         = document.getElementById('np-sn-vr').value.trim();
+
+  if (!hospital)                          { showErr('np-error','病院名を入力してください'); return; }
+  if (!disease)                           { showErr('np-error','疾患を選択してください'); return; }
+  if (disease==='other' && !diseaseOther) { showErr('np-error','疾患名を入力してください'); return; }
+  if (!mode)                              { showErr('np-error','MODEを選択してください'); return; }
+
+  const btn = document.querySelector('#screen-new-patient .btn-orange');
+  if (btn) { btn.disabled=true; btn.textContent='登録中...'; }
+  try {
+    const newId = await getNextPatientId();
+    await savePatient({ id:newId, hospital, disease, diseaseOther, mode, snAR, snVR,
+      discharge: collectMeasure(false), outpatient: null, threeMonth: null });
+    showConfirm(newId, '退院時データが登録されました',
+      `このデータは #${newId} として登録されました。\n次回は外来時（2〜4週後）にデータ入力をお願いします。`);
+  } catch(e) {
+    showErr('np-error','データの保存に失敗しました。ネットワークを確認してください。');
+    console.error(e);
+  } finally {
+    if (btn) { btn.disabled=false; btn.textContent='📤 退院時データを登録する'; }
+  }
+};
 
 // ═══════════════════════════════════════════════════
 //  Patient select list
 // ═══════════════════════════════════════════════════
-function renderPatientSelectList() {
-  const db = loadDB();
+async function renderPatientSelectList() {
   const el = document.getElementById('patient-select-list');
-  if (!db.patients.length) {
-    el.innerHTML = '<div class="empty-state">登録患者がいません。まず初回登録を行ってください。</div>';
-    return;
-  }
-  const nextTxt = {outpatient:'次回: 外来時データ入力', threeMonth:'次回: 3か月後データ入力'};
-  el.innerHTML = db.patients.map(p => {
-    const st = getStatus(p);
-    const done = !st.next;
-    return `
-      <div class="patient-card ${done?'complete':''}" ${done?'':` onclick="selectPatient(${p.id})"`}>
-        <div style="display:flex; align-items:center;">
-          <span class="pat-num">#${p.id}</span>
-          <div>
-            <div class="pat-name">${p.hospital}</div>
-            <div class="pat-sub">${dLabel(p)} ／ MODE: ${p.mode}</div>
+  el.innerHTML = '<div class="empty-state">読み込み中...</div>';
+  try {
+    const fac = sessionStorage.getItem('fl_facility');
+    const all = await getAllPatients();
+    const patients = fac ? all.filter(p => p.hospital === fac) : all;
+    if (!patients.length) {
+      el.innerHTML = '<div class="empty-state">登録患者がいません。まず初回登録を行ってください。</div>';
+      return;
+    }
+    const nextTxt = {outpatient:'次回: 外来時データ入力', threeMonth:'次回: 3か月後データ入力'};
+    el.innerHTML = patients.map(p => {
+      const st = getStatus(p);
+      const done = !st.next;
+      return `
+        <div class="patient-card ${done?'complete':''}" ${done?'':` onclick="selectPatient(${p.id})"`}>
+          <div style="display:flex; align-items:center;">
+            <span class="pat-num">#${p.id}</span>
+            <div>
+              <div class="pat-name">${p.hospital}</div>
+              <div class="pat-sub">${dLabel(p)} ／ MODE: ${p.mode}</div>
+            </div>
           </div>
-        </div>
-        <div style="text-align:right;">
-          <span class="badge ${st.badge}">${st.label}</span>
-          ${!done ? `<span class="badge-next">▶ ${nextTxt[st.next]}</span>` : ''}
-        </div>
-      </div>`;
-  }).join('');
+          <div style="text-align:right;">
+            <span class="badge ${st.badge}">${st.label}</span>
+            ${!done ? `<span class="badge-next">▶ ${nextTxt[st.next]}</span>` : ''}
+          </div>
+        </div>`;
+    }).join('');
+  } catch(e) {
+    el.innerHTML = '<div class="empty-state" style="color:var(--red);">データの読み込みに失敗しました。</div>';
+    console.error(e);
+  }
 }
 
 // ═══════════════════════════════════════════════════
@@ -1303,46 +1344,52 @@ function renderPatientSelectList() {
 // ═══════════════════════════════════════════════════
 let _pid=null, _tp=null;
 
-function selectPatient(id) {
-  const db = loadDB();
-  const p  = db.patients.find(x => x.id===id);
-  if (!p) return;
-  const st = getStatus(p);
-  if (!st.next) return;
-  _pid=id; _tp=st.next;
-  const inclBat = (_tp==='outpatient'||_tp==='threeMonth');
-
-  document.getElementById('add-data-title').textContent = `#${id} ${p.hospital} ─ ${TP_TITLES[st.next]}`;
-  document.getElementById('tp-steps-indicator').innerHTML =
-    ['discharge','outpatient','threeMonth'].map(tp => {
-      let cls=''; if(p[tp]) cls='done'; else if(tp===st.next) cls='current';
-      return `<div class="tp-step ${cls}">${TP_LABELS[tp]}${cls==='done'?' ✓':''}</div>`;
-    }).join('');
-  document.getElementById('add-data-info').innerHTML = `
-    <div class="alert alert-info" style="margin-bottom:16px;">
-      <strong>${p.hospital}</strong> ／ 疾患: ${dLabel(p)} ／ MODE: ${p.mode}<br>
-      <span style="font-size:.8rem;">AR SN: ${p.snAR||'─'} ／ VR SN: ${p.snVR||'─'}</span>
-    </div>`;
-  document.getElementById('add-data-fields').innerHTML = '<div id="m-inner"></div>';
-  buildMeasureFields('m-inner', inclBat);
-  hideErr('add-error');
-  goto('screen-add-data');
-}
+window.selectPatient = async function(id) {
+  try {
+    const snap = await getDoc(doc(db, 'patients', String(id)));
+    if (!snap.exists()) return;
+    const p = snap.data();
+    const st = getStatus(p);
+    if (!st.next) return;
+    _pid=p.id; _tp=st.next;
+    const inclBat = (_tp==='outpatient'||_tp==='threeMonth');
+    document.getElementById('add-data-title').textContent = `#${p.id} ${p.hospital} ─ ${TP_TITLES[st.next]}`;
+    document.getElementById('tp-steps-indicator').innerHTML =
+      ['discharge','outpatient','threeMonth'].map(tp => {
+        let cls=''; if(p[tp]) cls='done'; else if(tp===st.next) cls='current';
+        return `<div class="tp-step ${cls}">${TP_LABELS[tp]}${cls==='done'?' ✓':''}</div>`;
+      }).join('');
+    document.getElementById('add-data-info').innerHTML = `
+      <div class="alert alert-info" style="margin-bottom:16px;">
+        <strong>${p.hospital}</strong> ／ 疾患: ${dLabel(p)} ／ MODE: ${p.mode}<br>
+        <span style="font-size:.8rem;">AR SN: ${p.snAR||'─'} ／ VR SN: ${p.snVR||'─'}</span>
+      </div>`;
+    document.getElementById('add-data-fields').innerHTML = '<div id="m-inner"></div>';
+    buildMeasureFields('m-inner', inclBat);
+    hideErr('add-error');
+    goto('screen-add-data');
+  } catch(e) { console.error(e); }
+};
 
 // ═══════════════════════════════════════════════════
 //  Submit add data
 // ═══════════════════════════════════════════════════
-function submitAddData() {
+window.submitAddData = async function() {
   if (!_pid||!_tp) return;
   hideErr('add-error');
   const inclBat = (_tp==='outpatient'||_tp==='threeMonth');
-  const db = loadDB();
-  const p  = db.patients.find(x => x.id===_pid);
-  if (!p) return;
-  p[_tp] = collectMeasure(inclBat);
-  saveDB(db);
-  showConfirm(_pid, TP_CONF[_tp], `#${_pid} のデータが登録されました。\n${TP_MSG[_tp]}`);
-}
+  const btn = document.querySelector('#screen-add-data .btn-blue');
+  if (btn) { btn.disabled=true; btn.textContent='登録中...'; }
+  try {
+    await updateDoc(doc(db, 'patients', String(_pid)), { [_tp]: collectMeasure(inclBat) });
+    showConfirm(_pid, TP_CONF[_tp], `#${_pid} のデータが登録されました。\n${TP_MSG[_tp]}`);
+  } catch(e) {
+    showErr('add-error','データの保存に失敗しました。ネットワークを確認してください。');
+    console.error(e);
+  } finally {
+    if (btn) { btn.disabled=false; btn.textContent='📤 データを登録する'; }
+  }
+};
 
 // ═══════════════════════════════════════════════════
 //  Confirmation
@@ -1355,184 +1402,98 @@ function showConfirm(id, title, msg) {
 }
 
 // ═══════════════════════════════════════════════════
-//  Facility Portal
+//  Facility view
 // ═══════════════════════════════════════════════════
-const FL_KEY = 'aveir_facility_pw'; // { '施設名': 'パスワード' }
-
-function loadFacilityPW() {
-  try { return JSON.parse(localStorage.getItem(FL_KEY)) || {}; } catch { return {}; }
-}
-function saveFacilityPW(obj) { localStorage.setItem(FL_KEY, JSON.stringify(obj)); }
-
-let _flHosp = '';
-
-function gotoFacilityLogin() {
-  const fac = sessionStorage.getItem('fl_facility');
-  if (fac) {
-    showFacilityView(fac);
-  } else {
-    goto('screen-facility-login');
-  }
-}
-
-function flShowStep0() {
-  hideErr('fl-error');
-  document.getElementById('fl-s0').style.display       = 'block';
-  document.getElementById('fl-s1-new').style.display   = 'none';
-  document.getElementById('fl-s1-exist').style.display = 'none';
-}
-
-function flShowNew() {
-  hideErr('fl-error');
-  document.getElementById('fl-s0').style.display       = 'none';
-  document.getElementById('fl-s1-new').style.display   = 'block';
-  document.getElementById('fl-s1-exist').style.display = 'none';
-  setTimeout(() => document.getElementById('fl-hosp-new').focus(), 100);
-}
-
-function flShowExist() {
-  hideErr('fl-error');
-  const pws = loadFacilityPW();
-  const registered = Object.keys(pws);
-  if (!registered.length) {
-    showErr('fl-error', '登録済みの施設がありません。まず「初回施設登録」を行ってください。');
-    return;
-  }
-  const sel = document.getElementById('fl-hosp-select');
-  sel.innerHTML = '<option value="">施設を選択してください</option>' +
-    registered.map(h => `<option value="${h}">${h}</option>`).join('');
-  document.getElementById('fl-pw-exist').value = '';
-  document.getElementById('fl-s0').style.display       = 'none';
-  document.getElementById('fl-s1-new').style.display   = 'none';
-  document.getElementById('fl-s1-exist').style.display = 'block';
-  setTimeout(() => sel.focus(), 100);
-}
-
-function checkPwRules() {
-  const el = document.getElementById('fl-pw-new');
-  const pw = el ? el.value : '';
-  const rules = {
-    'rule-len':   pw.length >= 8,
-    'rule-upper': /[A-Z]/.test(pw),
-    'rule-lower': /[a-z]/.test(pw),
-    'rule-num':   /[0-9]/.test(pw),
-  };
-  Object.entries(rules).forEach(([id, ok]) => {
-    const el2 = document.getElementById(id);
-    if (el2) el2.className = 'pw-rule' + (ok ? ' ok' : '');
-  });
-  return Object.values(rules).every(Boolean);
-}
-
-function flRegister() {
-  hideErr('fl-error');
-  const hosp = document.getElementById('fl-hosp-new').value.trim();
-  if (!hosp) { showErr('fl-error', '施設名を入力してください'); return; }
-  const pws = loadFacilityPW();
-  if (pws[hosp]) { showErr('fl-error', 'この施設名はすでに登録されています。「登録済施設ログイン」をご利用ください。'); return; }
-  if (!checkPwRules()) { showErr('fl-error', 'パスワードの条件を全て満たしてください'); return; }
-  const pw1 = document.getElementById('fl-pw-new').value;
-  const pw2 = document.getElementById('fl-pw-confirm').value;
-  if (pw1 !== pw2) { showErr('fl-error', 'パスワードが一致しません'); return; }
-  pws[hosp] = pw1;
-  saveFacilityPW(pws);
-  _flHosp = hosp;
-  sessionStorage.setItem('facility_authed', hosp);
-  showFacilityView(hosp);
-}
-
-function flLogin() {
-  hideErr('fl-error');
-  const hosp = document.getElementById('fl-hosp-select').value;
-  const pw   = document.getElementById('fl-pw-exist').value;
-  if (!hosp) { showErr('fl-error', '施設を選択してください'); return; }
-  const pws  = loadFacilityPW();
-  if (pws[hosp] && pws[hosp] === pw) {
-    _flHosp = hosp;
-    sessionStorage.setItem('facility_authed', hosp);
-    showFacilityView(hosp);
-  } else {
-    showErr('fl-error', 'パスワードが正しくありません');
-    document.getElementById('fl-pw-exist').value = '';
-    document.getElementById('fl-pw-exist').focus();
-  }
-}
-
-function showFacilityView(hosp) {
-  const db = loadDB();
-  const ps = db.patients.filter(p => p.hospital === hosp);
-
-  document.getElementById('fv-title').textContent = hosp;
-
-  // Stats
-  const total    = ps.length;
-  const complete = ps.filter(p => p.threeMonth).length;
-  const inFollow = ps.filter(p => p.discharge && !p.threeMonth).length;
-  const waiting  = ps.filter(p => p.outpatient && !p.threeMonth).length;
-  document.getElementById('fv-stats').innerHTML = `
-    <div class="fv-stat"><div class="val fv-blue">${total}</div><div class="lbl">登録患者数 N</div></div>
-    <div class="fv-stat"><div class="val fv-green">${complete}</div><div class="lbl">全完了</div></div>
-    <div class="fv-stat"><div class="val fv-orange">${inFollow}</div><div class="lbl">フォロー中</div></div>
-    <div class="fv-stat"><div class="val fv-red">${waiting}</div><div class="lbl">外来時待ち</div></div>
-  `;
-
-  // Patient list
-  if (!ps.length) {
-    document.getElementById('fv-list').innerHTML =
-      '<div style="text-align:center;color:var(--text-sub);padding:30px;">この施設の登録患者はいません</div>';
-  } else {
-    document.getElementById('fv-list').innerHTML = ps.map(p => {
-      const modeCls = p.mode === 'DDD' ? 'ddd' : 'aai';
-      const tp = (key) => p[key]
-        ? `<div class="tp-mark done">✓</div>`
-        : `<div class="tp-mark pend"></div>`;
-      return `
-        <div class="pt-progress-row">
-          <div class="p-num">#${p.id}</div>
-          <div class="p-info">
-            <div class="sub">AR: ${p.snAR||'─'}</div>
-            <div class="sub">VR: ${p.snVR||'─'}</div>
-          </div>
-          <div style="text-align:center;"><span class="p-mode ${modeCls}">${p.mode}</span></div>
-          <div style="font-size:.83rem;font-weight:600;">${dLabel(p)}</div>
-          <div class="tp-cell"><span class="tp-lbl">退院時</span>${tp('discharge')}</div>
-          <div class="tp-cell"><span class="tp-lbl">外来時</span>${tp('outpatient')}</div>
-          <div class="tp-cell"><span class="tp-lbl">3か月後</span>${tp('threeMonth')}</div>
-        </div>`;
-    }).join('');
-  }
-
+async function showFacilityView(hosp) {
   goto('screen-facility-view');
+  document.getElementById('fv-title').textContent = hosp;
+  document.getElementById('fv-stats').innerHTML = '<div style="color:var(--text-sub);padding:10px;">読み込み中...</div>';
+  document.getElementById('fv-list').innerHTML = '';
+  try {
+    const all = await getAllPatients();
+    const ps  = all.filter(p => p.hospital === hosp);
+    const total    = ps.length;
+    const complete = ps.filter(p => p.threeMonth).length;
+    const inFollow = ps.filter(p => p.discharge && !p.threeMonth).length;
+    const waiting  = ps.filter(p => p.outpatient && !p.threeMonth).length;
+    document.getElementById('fv-stats').innerHTML = `
+      <div class="fv-stat"><div class="val fv-blue">${total}</div><div class="lbl">登録患者数 N</div></div>
+      <div class="fv-stat"><div class="val fv-green">${complete}</div><div class="lbl">全完了</div></div>
+      <div class="fv-stat"><div class="val fv-orange">${inFollow}</div><div class="lbl">フォロー中</div></div>
+      <div class="fv-stat"><div class="val fv-red">${waiting}</div><div class="lbl">外来時待ち</div></div>
+    `;
+    if (!ps.length) {
+      document.getElementById('fv-list').innerHTML =
+        '<div style="text-align:center;color:var(--text-sub);padding:30px;">この施設の登録患者はいません</div>';
+    } else {
+      document.getElementById('fv-list').innerHTML = ps.map(p => {
+        const modeCls = p.mode==='DDD' ? 'ddd' : 'aai';
+        const tp = key => p[key] ? `<div class="tp-mark done">✓</div>` : `<div class="tp-mark pend"></div>`;
+        return `
+          <div class="pt-progress-row">
+            <div class="p-num">#${p.id}</div>
+            <div class="p-info"><div class="sub">AR: ${p.snAR||'─'}</div><div class="sub">VR: ${p.snVR||'─'}</div></div>
+            <div style="text-align:center;"><span class="p-mode ${modeCls}">${p.mode}</span></div>
+            <div style="font-size:.83rem;font-weight:600;">${dLabel(p)}</div>
+            <div class="tp-cell"><span class="tp-lbl">退院時</span>${tp('discharge')}</div>
+            <div class="tp-cell"><span class="tp-lbl">外来時</span>${tp('outpatient')}</div>
+            <div class="tp-cell"><span class="tp-lbl">3か月後</span>${tp('threeMonth')}</div>
+          </div>`;
+      }).join('');
+    }
+  } catch(e) {
+    document.getElementById('fv-stats').innerHTML = '<div style="color:var(--red);padding:10px;">データの読み込みに失敗しました</div>';
+    console.error(e);
+  }
 }
 
 // ═══════════════════════════════════════════════════
 //  Serial lookup
 // ═══════════════════════════════════════════════════
-function doLookup() {
+window.doLookup = async function() {
   hideErr('lookup-error');
   document.getElementById('lookup-result').classList.remove('show');
   const sn = document.getElementById('lookup-sn').value.trim();
   if (!sn) { showErr('lookup-error','シリアル番号を入力してください'); return; }
-  const db = loadDB();
-  const p  = db.patients.find(x => (x.snAR&&x.snAR===sn)||(x.snVR&&x.snVR===sn));
-  if (!p)  { showErr('lookup-error',`SN: ${sn} に該当するデータが見つかりませんでした`); return; }
-  const st = getStatus(p);
-  const short = {discharge:'退院時', outpatient:'外来時', threeMonth:'3か月後'};
-  const nextTxt= {outpatient:'次回: 外来時データ入力', threeMonth:'次回: 3か月後データ入力'};
-  document.getElementById('lr-num').textContent      = `#${p.id}`;
-  document.getElementById('lr-hospital').textContent = p.hospital;
-  document.getElementById('lr-sub').textContent      =
-    `疾患: ${dLabel(p)} ／ MODE: ${p.mode} ／ AR SN: ${p.snAR||'─'} ／ VR SN: ${p.snVR||'─'}`;
-  document.getElementById('lr-chips').innerHTML =
-    ['discharge','outpatient','threeMonth'].map(tp => {
-      const done=!!p[tp];
-      return `<span class="tp-chip ${done?'done':'empty'}">${short[tp]}: ${done?p[tp].recordedAt:'未入力'}</span>`;
-    }).join('');
-  document.getElementById('lr-next').innerHTML = st.next
-    ? `<span style="color:var(--blue);">▶ ${nextTxt[st.next]}</span>`
-    : `<span style="color:var(--green);">✓ 全データ入力済み</span>`;
-  document.getElementById('lookup-result').classList.add('show');
-}
+  try {
+    const all = await getAllPatients();
+    const p   = all.find(x => (x.snAR&&x.snAR===sn)||(x.snVR&&x.snVR===sn));
+    if (!p) { showErr('lookup-error',`SN: ${sn} に該当するデータが見つかりませんでした`); return; }
+    const st = getStatus(p);
+    const short   = {discharge:'退院時', outpatient:'外来時', threeMonth:'3か月後'};
+    const nextTxt = {outpatient:'次回: 外来時データ入力', threeMonth:'次回: 3か月後データ入力'};
+    document.getElementById('lr-num').textContent      = `#${p.id}`;
+    document.getElementById('lr-hospital').textContent = p.hospital;
+    document.getElementById('lr-sub').textContent      =
+      `疾患: ${dLabel(p)} ／ MODE: ${p.mode} ／ AR SN: ${p.snAR||'─'} ／ VR SN: ${p.snVR||'─'}`;
+    document.getElementById('lr-chips').innerHTML =
+      ['discharge','outpatient','threeMonth'].map(tp => {
+        const done=!!p[tp];
+        return `<span class="tp-chip ${done?'done':'empty'}">${short[tp]}: ${done?p[tp].recordedAt:'未入力'}</span>`;
+      }).join('');
+    document.getElementById('lr-next').innerHTML = st.next
+      ? `<span style="color:var(--blue);">▶ ${nextTxt[st.next]}</span>`
+      : `<span style="color:var(--green);">✓ 全データ入力済み</span>`;
+    document.getElementById('lookup-result').classList.add('show');
+  } catch(e) {
+    showErr('lookup-error','データの読み込みに失敗しました');
+    console.error(e);
+  }
+};
+
+// ═══════════════════════════════════════════════════
+//  fl* stubs（旧施設ログイン画面用）
+// ═══════════════════════════════════════════════════
+window.flShowStep0 = function() {
+  document.getElementById('fl-s0').style.display='block';
+  document.getElementById('fl-s1-new').style.display='none';
+  document.getElementById('fl-s1-exist').style.display='none';
+};
+window.flShowNew    = function() { window.lsShowNew(); };
+window.flShowExist  = function() { window.lsShowExist(); };
+window.flRegister   = function() { window.lsRegister(); };
+window.flLogin      = function() { window.lsLogin(); };
+window.checkPwRules = function() { return window.lsCheckPwRules(); };
 
 </script>
 </body>
