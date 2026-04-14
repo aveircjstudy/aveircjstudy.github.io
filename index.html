@@ -515,6 +515,24 @@
     @media (max-width: 480px) {
       header h1 { font-size: 1.1rem; }
       .av-grid.three-col { grid-template-columns: 56px 1fr 1fr; }
+      /* ─── Mobile login ─── */
+      #login-screen { padding: 0; align-items: stretch; }
+      .login-box {
+        max-width: 100%; border-radius: 0;
+        padding: 40px 24px 32px;
+        min-height: 100vh; min-height: 100dvh;
+        display: flex; flex-direction: column; justify-content: center;
+        margin: 0;
+      }
+      .login-logo { font-size: 3.4rem; }
+      .login-title { font-size: 1.5rem; }
+      .login-sub { font-size: .85rem; }
+      .login-choice-btn { padding: 20px 18px; }
+      .lcb-icon { width: 50px; height: 50px; font-size: 1.8rem; }
+      .lcb-text h3 { font-size: 1.05rem; }
+      .lcb-text p  { font-size: .82rem; }
+      .login-box input, .login-box select { padding: 13px 14px; font-size: 1rem; }
+      .login-box .btn-full { padding: 15px; font-size: 1.05rem; }
     }
 
     /* ─── Login Screen ─── */
@@ -968,6 +986,9 @@ const firebaseApp = initializeApp(firebaseConfig);
 const db = getFirestore(firebaseApp);
 const auth = getAuth(firebaseApp);
 
+// ページ読み込み時に即座に匿名認証（Firestoreルールで必要）
+const authReady = signInAnonymously(auth).catch(e => console.error('Auth error:', e));
+
 // ═══════════════════════════════════════════════════
 //  Security helpers
 // ═══════════════════════════════════════════════════
@@ -1039,6 +1060,7 @@ window.lsShowNew = function() {
 };
 
 window.lsShowExist = async function() {
+  await authReady;
   const pws = await loadFacilityPW();
   const registered = Object.keys(pws);
   if (!registered.length) {
@@ -1086,6 +1108,7 @@ window.lsRegister = async function() {
   if (!hosp) {
     err.textContent = '⚠ 施設名を入力してください'; err.classList.add('show'); return;
   }
+  await authReady;
   const facSnap = await getDoc(doc(db, 'facilities', hosp));
   if (facSnap.exists()) {
     err.textContent = '⚠ この施設名はすでに登録されています。「登録済施設ログイン」をご利用ください。';
@@ -1101,7 +1124,6 @@ window.lsRegister = async function() {
   }
   const hashed = await hashPw(pw1);
   await saveFacility(hosp, hashed);
-  await signInAnonymously(auth);
   enterApp(hosp);
 };
 
@@ -1113,10 +1135,10 @@ window.lsLogin = async function() {
   if (!hosp) {
     err.textContent = '⚠ 施設を選択してください'; err.classList.add('show'); return;
   }
+  await authReady;
   const hashed = await hashPw(pw);
   const facSnap = await getDoc(doc(db, 'facilities', hosp));
   if (facSnap.exists() && facSnap.data().password === hashed) {
-    await signInAnonymously(auth);
     enterApp(hosp);
   } else {
     err.textContent = '⚠ パスワードが正しくありません';
