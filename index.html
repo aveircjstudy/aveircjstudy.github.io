@@ -1050,7 +1050,7 @@
 //  Firebase
 // ═══════════════════════════════════════════════════
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.12.0/firebase-app.js";
-import { getFirestore, collection, doc, getDoc, setDoc, updateDoc, getDocs, query, orderBy, runTransaction }
+import { getFirestore, collection, doc, getDoc, setDoc, updateDoc, getDocs, query, orderBy, runTransaction, onSnapshot }
   from "https://www.gstatic.com/firebasejs/12.12.0/firebase-firestore.js";
 import { getAuth, signInAnonymously }
   from "https://www.gstatic.com/firebasejs/12.12.0/firebase-auth.js";
@@ -1857,45 +1857,63 @@ function showConfirm(id, title, msg) {
 // ═══════════════════════════════════════════════════
 //  Facility view
 // ═══════════════════════════════════════════════════
+let _fvUnsub = null;
+
+function renderFacilityData(hosp, allDocs) {
+  const ps = allDocs.filter(p => p.hospital === hosp);
+  const total    = ps.length;
+  const complete = ps.filter(p => p.threeMonth).length;
+  const inFollow = ps.filter(p => p.discharge && !p.threeMonth).length;
+  const waitOut  = ps.filter(p => p.discharge && !p.outpatient).length;
+  document.getElementById('fv-stats').innerHTML = `
+    <div class="fv-stat"><div class="val fv-blue">${total}</div><div class="lbl">登録患者数 N</div></div>
+    <div class="fv-stat"><div class="val fv-green">${complete}</div><div class="lbl">全完了</div></div>
+    <div class="fv-stat"><div class="val fv-orange">${inFollow}</div><div class="lbl">フォロー中</div></div>
+    <div class="fv-stat"><div class="val fv-red">${waitOut}</div><div class="lbl">外来待ち</div></div>
+  `;
+  if (!ps.length) {
+    document.getElementById('fv-list').innerHTML =
+      '<div style="text-align:center;color:var(--text-sub);padding:30px;">この施設の登録患者はいません</div>';
+  } else {
+    document.getElementById('fv-list').innerHTML = ps.map(p => {
+      const modeCls = p.mode==='DDD' ? 'ddd' : 'aai';
+      const tp = key => p[key] ? `<div class="tp-mark done">✓</div>` : `<div class="tp-mark pend"></div>`;
+      return `
+        <div class="pt-progress-row">
+          <div class="p-num">#${p.id}</div>
+          <div class="p-info"><div class="sub">AR: ${esc(p.snAR||'─')}</div><div class="sub">VR: ${esc(p.snVR||'─')}</div></div>
+          <div style="text-align:center;"><span class="p-mode ${modeCls}">${esc(p.mode)}</span></div>
+          <div style="font-size:.83rem;font-weight:600;">${esc(dLabel(p))}</div>
+          <div class="tp-cells">
+            <div class="tp-cell"><span class="tp-lbl">退院時</span>${tp('discharge')}</div>
+            <div class="tp-cell"><span class="tp-lbl">外来時</span>${tp('outpatient')}</div>
+            <div class="tp-cell"><span class="tp-lbl">3か月後</span>${tp('threeMonth')}</div>
+          </div>
+        </div>`;
+    }).join('');
+  }
+}
+
 async function showFacilityView(hosp) {
   goto('screen-facility-view');
   document.getElementById('fv-title').textContent = hosp;
   document.getElementById('fv-stats').innerHTML = '<div style="color:var(--text-sub);padding:10px;">読み込み中...</div>';
   document.getElementById('fv-list').innerHTML = '';
+  // 既存リスナーを解除
+  if (_fvUnsub) { _fvUnsub(); _fvUnsub = null; }
   try {
-    const all = await getAllPatients();
-    const ps  = all.filter(p => p.hospital === hosp);
-    const total    = ps.length;
-    const complete = ps.filter(p => p.threeMonth).length;
-    const inFollow = ps.filter(p => p.discharge && !p.threeMonth).length;
-    const waiting  = ps.filter(p => p.outpatient && !p.threeMonth).length;
-    document.getElementById('fv-stats').innerHTML = `
-      <div class="fv-stat"><div class="val fv-blue">${total}</div><div class="lbl">登録患者数 N</div></div>
-      <div class="fv-stat"><div class="val fv-green">${complete}</div><div class="lbl">全完了</div></div>
-      <div class="fv-stat"><div class="val fv-orange">${inFollow}</div><div class="lbl">フォロー中</div></div>
-      <div class="fv-stat"><div class="val fv-red">${waiting}</div><div class="lbl">外来時待ち</div></div>
-    `;
-    if (!ps.length) {
-      document.getElementById('fv-list').innerHTML =
-        '<div style="text-align:center;color:var(--text-sub);padding:30px;">この施設の登録患者はいません</div>';
-    } else {
-      document.getElementById('fv-list').innerHTML = ps.map(p => {
-        const modeCls = p.mode==='DDD' ? 'ddd' : 'aai';
-        const tp = key => p[key] ? `<div class="tp-mark done">✓</div>` : `<div class="tp-mark pend"></div>`;
-        return `
-          <div class="pt-progress-row">
-            <div class="p-num">#${p.id}</div>
-            <div class="p-info"><div class="sub">AR: ${esc(p.snAR||'─')}</div><div class="sub">VR: ${esc(p.snVR||'─')}</div></div>
-            <div style="text-align:center;"><span class="p-mode ${modeCls}">${esc(p.mode)}</span></div>
-            <div style="font-size:.83rem;font-weight:600;">${esc(dLabel(p))}</div>
-            <div class="tp-cells">
-              <div class="tp-cell"><span class="tp-lbl">退院時</span>${tp('discharge')}</div>
-              <div class="tp-cell"><span class="tp-lbl">外来時</span>${tp('outpatient')}</div>
-              <div class="tp-cell"><span class="tp-lbl">3か月後</span>${tp('threeMonth')}</div>
-            </div>
-          </div>`;
-      }).join('');
-    }
+    await authReady;
+    _fvUnsub = onSnapshot(
+      query(collection(db, 'patients'), orderBy('id')),
+      (snap) => {
+        const all = snap.docs.map(d => d.data());
+        renderFacilityData(hosp, all);
+      },
+      (err) => {
+        document.getElementById('fv-stats').innerHTML = '<div style="color:var(--red);padding:10px;">データの読み込みに失敗しました</div>';
+        console.error(err);
+      }
+    );
   } catch(e) {
     document.getElementById('fv-stats').innerHTML = '<div style="color:var(--red);padding:10px;">データの読み込みに失敗しました</div>';
     console.error(e);

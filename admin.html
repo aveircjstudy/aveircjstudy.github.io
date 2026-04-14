@@ -191,6 +191,23 @@
     /* ── Loading ── */
     .loading-state { text-align: center; color: var(--sub); padding: 36px 0; font-size: .9rem; }
 
+    /* ── Live indicator ── */
+    .live-dot {
+      display: inline-block; width: 8px; height: 8px; border-radius: 50%;
+      background: #4caf50; margin-right: 6px;
+      animation: livePulse 2s ease-in-out infinite;
+    }
+    @keyframes livePulse {
+      0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(76,175,80,.5); }
+      50% { opacity: .7; box-shadow: 0 0 0 6px rgba(76,175,80,0); }
+    }
+    .live-badge {
+      font-size: .72rem; font-weight: 700; color: #388e3c;
+      background: #e8f5e9; border: 1px solid #a5d6a7;
+      border-radius: 20px; padding: 3px 10px;
+      display: inline-flex; align-items: center;
+    }
+
     /* ── Responsive ── */
     @media (max-width:600px) {
       .stat-grid { grid-template-columns: repeat(2,1fr); }
@@ -224,6 +241,7 @@
   </div>
   <div class="hdr-right">
     <div class="admin-badge">🔒 管理者</div>
+    <div class="live-badge"><span class="live-dot"></span>リアルタイム</div>
     <button class="logout-btn" onclick="adminLogout()">🚪 ログアウト</button>
   </div>
 </header>
@@ -234,6 +252,23 @@
   <div class="card">
     <div class="card-title">📊 スタディ統計サマリー</div>
     <div class="stat-grid" id="stat-grid"></div>
+
+    <hr class="sec-div">
+
+    <!-- ── Charts ── -->
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:24px; margin-bottom:22px;">
+      <div>
+        <h3 style="font-size:.85rem;font-weight:700;color:var(--sub);margin-bottom:10px;text-transform:uppercase;letter-spacing:.5px;">データ収集 進捗</h3>
+        <div style="display:flex;align-items:center;justify-content:center;">
+          <canvas id="chart-donut" width="200" height="200"></canvas>
+          <div id="chart-donut-legend" style="margin-left:16px;font-size:.78rem;"></div>
+        </div>
+      </div>
+      <div>
+        <h3 style="font-size:.85rem;font-weight:700;color:var(--sub);margin-bottom:10px;text-transform:uppercase;letter-spacing:.5px;">月別 登録推移</h3>
+        <canvas id="chart-timeline" width="360" height="200"></canvas>
+      </div>
+    </div>
 
     <hr class="sec-div">
 
@@ -252,18 +287,19 @@
 
     <hr class="sec-div">
 
-    <!-- 施設 -->
+    <!-- 施設別完了率 -->
     <div class="bar-section">
-      <h3>施設 別 N 数</h3>
+      <h3>施設 別 完了率</h3>
       <div id="bar-hospital"></div>
     </div>
 
     <hr class="sec-div">
 
-    <!-- データ収集進捗 -->
-    <div class="bar-section">
-      <h3>データ収集 進捗</h3>
-      <div id="bar-progress"></div>
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:24px;">
+      <div class="bar-section">
+        <h3>MODE 別</h3>
+        <div id="bar-mode2" style="display:none;"></div>
+      </div>
     </div>
   </div>
 
@@ -333,7 +369,7 @@
 //  Firebase
 // ════════════════════════════════════════
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.12.0/firebase-app.js";
-import { getFirestore, collection, doc, getDoc, setDoc, deleteDoc, getDocs, query, orderBy }
+import { getFirestore, collection, doc, getDoc, setDoc, deleteDoc, getDocs, query, orderBy, onSnapshot }
   from "https://www.gstatic.com/firebasejs/12.12.0/firebase-firestore.js";
 import { getAuth, signInAnonymously }
   from "https://www.gstatic.com/firebasejs/12.12.0/firebase-auth.js";
@@ -422,23 +458,35 @@ function fmt(v, unit='') { return v != null ? `${v}${unit}` : '─'; }
 //  Cached patient data
 // ════════════════════════════════════════
 let _allPatients = [];
+let _unsubscribe = null;
 
 // ════════════════════════════════════════
-//  Render everything
+//  Render everything (real-time)
 // ════════════════════════════════════════
 async function renderAll() {
-  // Show loading
   document.getElementById('stat-grid').innerHTML = '<div class="loading-state">データ読み込み中...</div>';
-  try {
-    _allPatients = await getAllPatients();
-  } catch(e) {
-    document.getElementById('stat-grid').innerHTML = '<div style="color:var(--red);padding:10px;">データの読み込みに失敗しました。ネットワークを確認してください。</div>';
-    console.error(e);
-    return;
-  }
-  renderStats(_allPatients);
-  buildHospFilter(_allPatients);
-  renderTable(_allPatients);
+  await authReady;
+  // Unsubscribe previous listener
+  if (_unsubscribe) _unsubscribe();
+  // Set up real-time listener
+  _unsubscribe = onSnapshot(
+    query(collection(db, 'patients'), orderBy('id')),
+    (snap) => {
+      _allPatients = snap.docs.map(d => d.data());
+      renderDashboard(_allPatients);
+    },
+    (err) => {
+      document.getElementById('stat-grid').innerHTML = '<div style="color:var(--red);padding:10px;">データの読み込みに失敗しました。</div>';
+      console.error(err);
+    }
+  );
+}
+function renderDashboard(ps) {
+  renderStats(ps);
+  renderCharts(ps);
+  buildHospFilter(ps);
+  const hosp = document.getElementById('hosp-filter').value;
+  renderTable(hosp ? ps.filter(p => p.hospital === hosp) : ps);
 }
 window.renderAll = renderAll;
 
@@ -502,20 +550,17 @@ function renderStats(ps) {
   if (otherN) dCounts.push({label:'Other', n:otherN, color:'#546e7a'});
   renderBars('bar-disease', dCounts.filter(d=>d.n>0), total);
 
-  // Hospital
-  const hospMap = {};
-  ps.forEach(p => { hospMap[p.hospital] = (hospMap[p.hospital]||0) + 1; });
-  const hospArr = Object.entries(hospMap)
-    .map(([label,n])=>({label,n,color:'#00695c'}))
+  // Hospital with completion rate
+  const hospData = {};
+  ps.forEach(p => {
+    if (!hospData[p.hospital]) hospData[p.hospital] = {total:0, complete:0};
+    hospData[p.hospital].total++;
+    if (p.threeMonth) hospData[p.hospital].complete++;
+  });
+  const hospArr = Object.entries(hospData)
+    .map(([label,d])=>({label:`${label} (${d.complete}/${d.total})`, n:d.total, color:'#00695c'}))
     .sort((a,b)=>b.n-a.n);
   renderBars('bar-hospital', hospArr, total);
-
-  // Progress
-  renderBars('bar-progress', [
-    {label:'退院時',   n:dis,  color:'#1565c0'},
-    {label:'外来時',   n:out,  color:'#e65100'},
-    {label:'3か月後',  n:complete, color:'#2e7d32'},
-  ], total);
 }
 
 function renderBars(id, items, total) {
@@ -680,6 +725,175 @@ window.exportCSV = function() {
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
   URL.revokeObjectURL(url);
 };
+
+// ════════════════════════════════════════
+//  Charts (Canvas)
+// ════════════════════════════════════════
+function renderCharts(ps) {
+  renderDonutChart(ps);
+  renderTimelineChart(ps);
+}
+
+function renderDonutChart(ps) {
+  const canvas = document.getElementById('chart-donut');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = 200 * dpr; canvas.height = 200 * dpr;
+  canvas.style.width = '200px'; canvas.style.height = '200px';
+  ctx.scale(dpr, dpr);
+  ctx.clearRect(0, 0, 200, 200);
+
+  const total = ps.length;
+  if (!total) {
+    ctx.fillStyle = '#c8d6e4'; ctx.font = '600 14px sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText('データなし', 100, 105);
+    document.getElementById('chart-donut-legend').innerHTML = '';
+    return;
+  }
+  const complete3 = ps.filter(p => p.threeMonth).length;
+  const hasOut    = ps.filter(p => p.outpatient && !p.threeMonth).length;
+  const hasDis    = ps.filter(p => p.discharge && !p.outpatient).length;
+  const noData    = total - complete3 - hasOut - hasDis;
+
+  const slices = [
+    {label:'全完了',      n:complete3, color:'#2e7d32'},
+    {label:'外来時済',    n:hasOut,    color:'#e65100'},
+    {label:'退院時済',    n:hasDis,    color:'#1565c0'},
+    {label:'未入力',      n:noData,    color:'#c8d6e4'},
+  ].filter(s => s.n > 0);
+
+  const cx=100, cy=100, r=80, ir=48;
+  let angle = -Math.PI/2;
+  slices.forEach(s => {
+    const sweep = (s.n / total) * Math.PI * 2;
+    ctx.beginPath();
+    ctx.moveTo(cx + Math.cos(angle) * ir, cy + Math.sin(angle) * ir);
+    ctx.arc(cx, cy, r, angle, angle + sweep);
+    ctx.arc(cx, cy, ir, angle + sweep, angle, true);
+    ctx.closePath();
+    ctx.fillStyle = s.color;
+    ctx.fill();
+    angle += sweep;
+  });
+  // Center text
+  ctx.fillStyle = '#1a2633'; ctx.font = '900 28px sans-serif'; ctx.textAlign = 'center';
+  ctx.fillText(`${Math.round(complete3/total*100)}%`, cx, cy + 2);
+  ctx.fillStyle = '#4a6070'; ctx.font = '600 11px sans-serif';
+  ctx.fillText('完了率', cx, cy + 18);
+
+  // Legend
+  document.getElementById('chart-donut-legend').innerHTML = slices.map(s =>
+    `<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">
+      <div style="width:10px;height:10px;border-radius:3px;background:${s.color};flex-shrink:0;"></div>
+      <span>${esc(s.label)}</span>
+      <strong style="margin-left:auto;">${s.n}</strong>
+    </div>`
+  ).join('');
+}
+
+function renderTimelineChart(ps) {
+  const canvas = document.getElementById('chart-timeline');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const dpr = window.devicePixelRatio || 1;
+  const W = 360, H = 200;
+  canvas.width = W * dpr; canvas.height = H * dpr;
+  canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
+  ctx.scale(dpr, dpr);
+  ctx.clearRect(0, 0, W, H);
+
+  if (!ps.length) {
+    ctx.fillStyle = '#c8d6e4'; ctx.font = '600 14px sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText('データなし', W/2, H/2);
+    return;
+  }
+
+  // Group by month from discharge.recordedAt
+  const monthCounts = {};
+  ps.forEach(p => {
+    const d = p.discharge?.recordedAt;
+    if (!d) return;
+    const m = d.substring(0, 7); // YYYY-MM
+    monthCounts[m] = (monthCounts[m] || 0) + 1;
+  });
+  const months = Object.keys(monthCounts).sort();
+  if (!months.length) {
+    ctx.fillStyle = '#c8d6e4'; ctx.font = '600 14px sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText('データなし', W/2, H/2);
+    return;
+  }
+  // Fill gaps between months
+  if (months.length > 1) {
+    const start = new Date(months[0] + '-01');
+    const end   = new Date(months[months.length-1] + '-01');
+    const cur   = new Date(start);
+    while (cur <= end) {
+      const key = cur.toISOString().substring(0,7);
+      if (!monthCounts[key]) { monthCounts[key] = 0; months.push(key); }
+      cur.setMonth(cur.getMonth() + 1);
+    }
+    months.sort();
+  }
+  const vals = months.map(m => monthCounts[m] || 0);
+  const maxVal = Math.max(...vals, 1);
+
+  const padL=40, padR=16, padT=20, padB=36;
+  const chartW = W - padL - padR;
+  const chartH = H - padT - padB;
+  const barW = Math.min(36, (chartW / months.length) * 0.65);
+  const gap = chartW / months.length;
+
+  // Y axis
+  ctx.strokeStyle = '#e0e4e8'; ctx.lineWidth = 1;
+  const ySteps = Math.min(maxVal, 5);
+  for (let i = 0; i <= ySteps; i++) {
+    const y = padT + chartH - (i / ySteps) * chartH;
+    ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(W - padR, y); ctx.stroke();
+    ctx.fillStyle = '#8a9ab0'; ctx.font = '600 10px sans-serif'; ctx.textAlign = 'right';
+    ctx.fillText(Math.round(i/ySteps*maxVal), padL - 6, y + 3);
+  }
+
+  // Bars
+  vals.forEach((v, i) => {
+    const x = padL + gap * i + (gap - barW) / 2;
+    const h = (v / maxVal) * chartH;
+    const y = padT + chartH - h;
+
+    // Gradient bar
+    const grad = ctx.createLinearGradient(x, y, x, padT + chartH);
+    grad.addColorStop(0, '#1976d2');
+    grad.addColorStop(1, '#42a5f5');
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    const radius = Math.min(4, barW/2);
+    ctx.moveTo(x + radius, y);
+    ctx.lineTo(x + barW - radius, y);
+    ctx.quadraticCurveTo(x + barW, y, x + barW, y + radius);
+    ctx.lineTo(x + barW, padT + chartH);
+    ctx.lineTo(x, padT + chartH);
+    ctx.lineTo(x, y + radius);
+    ctx.quadraticCurveTo(x, y, x + radius, y);
+    ctx.fill();
+
+    // Value on top
+    if (v > 0) {
+      ctx.fillStyle = '#1a2633'; ctx.font = '700 11px sans-serif'; ctx.textAlign = 'center';
+      ctx.fillText(v, x + barW/2, y - 5);
+    }
+
+    // Month label
+    ctx.fillStyle = '#4a6070'; ctx.font = '600 10px sans-serif'; ctx.textAlign = 'center';
+    const lbl = months[i].substring(5); // MM
+    ctx.fillText(lbl + '月', x + barW/2, H - padB + 14);
+  });
+
+  // Year label
+  if (months.length > 0) {
+    ctx.fillStyle = '#8a9ab0'; ctx.font = '600 10px sans-serif'; ctx.textAlign = 'left';
+    ctx.fillText(months[0].substring(0,4) + '年', padL, H - 4);
+  }
+}
 
 window.clearAllData = async function() {
   if (!confirm('全データを削除します。この操作は取り消せません。本当に実行しますか？')) return;
