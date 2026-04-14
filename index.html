@@ -589,6 +589,33 @@
       width: 100%; background: #f4f6f9; border: 1.5px solid var(--border);
       border-radius: 8px; color: var(--text); padding: 10px 14px; font-size: .95rem;
     }
+    /* ─── Confirmation overlay ─── */
+    .data-confirm-overlay {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,.5);
+      display: none; align-items: center; justify-content: center;
+      z-index: 250; padding: 16px; overflow-y: auto;
+    }
+    .data-confirm-overlay.show { display: flex; }
+    .dc-box {
+      background: #fff; border-radius: 16px;
+      padding: 28px 24px; width: 100%; max-width: 520px;
+      box-shadow: 0 12px 48px rgba(0,0,0,.25);
+      max-height: 90vh; overflow-y: auto;
+    }
+    .dc-title { font-size: 1.1rem; font-weight: 800; color: var(--blue); margin-bottom: 16px; text-align: center; }
+    .dc-section { margin-bottom: 14px; }
+    .dc-section-head { font-size: .78rem; font-weight: 700; color: var(--blue); background: var(--blue-bg); border-radius: 6px; padding: 5px 10px; margin-bottom: 8px; }
+    .dc-row { display: flex; justify-content: space-between; padding: 4px 0; border-bottom: 1px solid #f0f2f5; font-size: .85rem; }
+    .dc-row .dk { color: var(--text-sub); }
+    .dc-row .dv { font-weight: 700; }
+    .dc-actions { display: flex; gap: 10px; margin-top: 20px; }
+    .dc-actions .btn { flex: 1; }
+
+    /* ─── Nominal select ─── */
+    select.nominal { color: rgba(26,38,51,.35); }
+    select.nominal option { color: var(--text); }
+
     /* header facility badge */
     .hdr-facility {
       background: rgba(255,255,255,.18); border: 1px solid rgba(255,255,255,.35);
@@ -772,10 +799,11 @@
 
       <div class="alert alert-error" id="np-error"></div>
 
-      <!-- ① 病院名 -->
+      <!-- ① 病院名（ログイン施設名で自動固定） -->
       <div class="form-group">
         <label class="form-label"><span class="num-tag">1</span>病院名</label>
         <input type="text" id="np-hospital" placeholder="例: 東京大学附属病院">
+        <div id="np-hosp-lock-msg" style="display:none;font-size:.75rem;color:var(--green);font-weight:600;margin-top:4px;">🔒 ログイン施設名が自動入力されています</div>
       </div>
 
       <!-- ② 疾患 -->
@@ -1002,6 +1030,18 @@
     </div>
   </div>
 
+
+  <!-- ═══════════════════ DATA CONFIRM MODAL ═══════════════════ -->
+  <div class="data-confirm-overlay" id="data-confirm-overlay">
+    <div class="dc-box">
+      <div class="dc-title">📋 入力内容の確認</div>
+      <div id="dc-content"></div>
+      <div class="dc-actions">
+        <button class="btn btn-gray" onclick="closeConfirmModal()">✏️ 修正する</button>
+        <button class="btn btn-blue" id="dc-confirm-btn" onclick="confirmSave()">✅ 確定して登録</button>
+      </div>
+    </div>
+  </div>
 
 </div><!-- /container -->
 
@@ -1319,13 +1359,28 @@ window.goto = goto;
 window.gotoNewPatient = function() {
   buildMeasureFields('np-measure-fields', false);
   hideErr('np-error');
-  ['np-hospital','np-sn-ar','np-sn-vr'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
+  ['np-sn-ar','np-sn-vr'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
   ['np-disease','np-mode'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
   const ow = document.getElementById('np-other-wrap');
   if (ow) ow.style.display='none';
-  // 施設名を自動入力
+  // 施設名を自動入力＆ロック
   const fac = sessionStorage.getItem('fl_facility');
-  if (fac) { const h=document.getElementById('np-hospital'); if(h) h.value=fac; }
+  const h = document.getElementById('np-hospital');
+  const lockMsg = document.getElementById('np-hosp-lock-msg');
+  if (h) {
+    h.value = fac || '';
+    if (fac) {
+      h.readOnly = true;
+      h.style.background = '#e8ecf0';
+      h.style.cursor = 'not-allowed';
+      if (lockMsg) lockMsg.style.display = 'block';
+    } else {
+      h.readOnly = false;
+      h.style.background = '';
+      h.style.cursor = '';
+      if (lockMsg) lockMsg.style.display = 'none';
+    }
+  }
   goto('screen-new-patient');
 };
 
@@ -1369,15 +1424,20 @@ window.toggleOther = function(prefix) {
 function buildMeasureFields(containerId, inclBat) {
   const el = document.getElementById(containerId);
   if (!el) return;
-  const selOpts = [1,2,3,4,5,6,7].map(n=>`<option value="${n}">${n}</option>`).join('');
+  const today = new Date().toISOString().split('T')[0];
+  const selOpts = [1,2,3,4,5,6,7].map(n=>`<option value="${n}"${n===4?' selected':''}>${n}</option>`).join('');
   el.innerHTML = `
     <div class="form-group">
-      <div class="section-head"><span class="num-tag">4</span>i2i 設定レベル（1〜7）</div>
+      <div class="section-head">📅 記録日（測定実施日）</div>
+      <input type="date" id="m-record-date" value="${today}" style="max-width:220px;">
+    </div>
+    <div class="form-group">
+      <div class="section-head"><span class="num-tag">4</span>i2i 設定レベル（1〜7）<span style="font-weight:400;color:var(--text-sub);font-size:.72rem;margin-left:6px;">ノミナル: 4</span></div>
       <div class="av-grid three-col">
         <div></div><div class="av-col-label">心房（A）</div><div class="av-col-label">心室（V）</div>
         <div class="av-row-label">i2i レベル</div>
-        <select id="m-i2i-a" style="text-align:center;">${selOpts}</select>
-        <select id="m-i2i-v" style="text-align:center;">${selOpts}</select>
+        <select id="m-i2i-a" class="nominal" style="text-align:center;" onchange="this.classList.remove('nominal')">${selOpts}</select>
+        <select id="m-i2i-v" class="nominal" style="text-align:center;" onchange="this.classList.remove('nominal')">${selOpts}</select>
       </div>
     </div>
     <div class="form-group">
@@ -1437,6 +1497,7 @@ function buildMeasureFields(containerId, inclBat) {
 // ═══════════════════════════════════════════════════
 function nv(id) { const el=document.getElementById(id); if(!el) return null; const v=el.value; return v!=='' ? parseFloat(v) : null; }
 function collectMeasure(inclBat) {
+  const dateEl = document.getElementById('m-record-date');
   const d = {
     i2iA: parseInt(document.getElementById('m-i2i-a')?.value)||null,
     i2iV: parseInt(document.getElementById('m-i2i-v')?.value)||null,
@@ -1445,11 +1506,102 @@ function collectMeasure(inclBat) {
     thresholdVV: nv('m-thr-vv'), thresholdVms: nv('m-thr-vms'),
     amplitudeA: nv('m-sense-a'), amplitudeV: nv('m-sense-v'),
     impedanceA: nv('m-imp-a'),   impedanceV: nv('m-imp-v'),
-    recordedAt: new Date().toISOString().split('T')[0],
+    recordedAt: dateEl ? dateEl.value : new Date().toISOString().split('T')[0],
   };
   if (inclBat) { d.batteryA = nv('m-bat-a'); d.batteryV = nv('m-bat-v'); }
   return d;
 }
+
+// ═══════════════════════════════════════════════════
+//  Measurement validation
+// ═══════════════════════════════════════════════════
+function validateMeasure(errId, inclBat) {
+  const dateEl = document.getElementById('m-record-date');
+  if (!dateEl || !dateEl.value) { showErr(errId, '記録日を入力してください'); return false; }
+  // Range checks
+  const checks = [
+    {id:'m-tp-a2v',  name:'スループット A2V', min:0, max:100},
+    {id:'m-tp-v2a',  name:'スループット V2A', min:0, max:100},
+    {id:'m-thr-av',  name:'閾値 A 電圧',     min:0, max:10},
+    {id:'m-thr-ams', name:'閾値 A パルス幅',  min:0, max:2},
+    {id:'m-thr-vv',  name:'閾値 V 電圧',     min:0, max:10},
+    {id:'m-thr-vms', name:'閾値 V パルス幅',  min:0, max:2},
+    {id:'m-sense-a', name:'波高値 A',        min:0, max:50},
+    {id:'m-sense-v', name:'波高値 V',        min:0, max:50},
+    {id:'m-imp-a',   name:'インピーダンス A',  min:50, max:3000},
+    {id:'m-imp-v',   name:'インピーダンス V',  min:50, max:3000},
+  ];
+  if (inclBat) {
+    checks.push({id:'m-bat-a', name:'電池寿命 AR', min:0, max:25});
+    checks.push({id:'m-bat-v', name:'電池寿命 VR', min:0, max:25});
+  }
+  for (const c of checks) {
+    const v = nv(c.id);
+    if (v !== null && (isNaN(v) || v < c.min || v > c.max)) {
+      showErr(errId, `${c.name} の値が範囲外です（${c.min}〜${c.max}）`);
+      document.getElementById(c.id)?.focus();
+      return false;
+    }
+  }
+  return true;
+}
+
+// ═══════════════════════════════════════════════════
+//  Data confirmation modal
+// ═══════════════════════════════════════════════════
+let _confirmCallback = null;
+
+function buildConfirmHTML(patientInfo, measureData, inclBat) {
+  let html = '';
+  if (patientInfo) {
+    html += `<div class="dc-section"><div class="dc-section-head">👤 患者情報</div>`;
+    for (const [k,v] of Object.entries(patientInfo)) {
+      html += `<div class="dc-row"><span class="dk">${esc(k)}</span><span class="dv">${esc(String(v||'─'))}</span></div>`;
+    }
+    html += `</div>`;
+  }
+  const d = measureData;
+  const fmt = (v, u='') => v != null ? `${v}${u}` : '─';
+  html += `<div class="dc-section"><div class="dc-section-head">📊 測定データ</div>`;
+  const rows = [
+    ['記録日', d.recordedAt||'─'],
+    ['i2i レベル A', fmt(d.i2iA)], ['i2i レベル V', fmt(d.i2iV)],
+    ['スループット A2V', fmt(d.throughputA2V,'%')], ['スループット V2A', fmt(d.throughputV2A,'%')],
+    ['閾値 A', d.thresholdAV!=null ? `${d.thresholdAV}V @ ${d.thresholdAms}ms` : '─'],
+    ['閾値 V', d.thresholdVV!=null ? `${d.thresholdVV}V @ ${d.thresholdVms}ms` : '─'],
+    ['波高値 A', fmt(d.amplitudeA,' mV')], ['波高値 V', fmt(d.amplitudeV,' mV')],
+    ['インピーダンス A', fmt(d.impedanceA,' Ω')], ['インピーダンス V', fmt(d.impedanceV,' Ω')],
+  ];
+  if (inclBat) {
+    rows.push(['電池寿命 AR', fmt(d.batteryA,' 年')], ['電池寿命 VR', fmt(d.batteryV,' 年')]);
+  }
+  for (const [k,v] of rows) {
+    html += `<div class="dc-row"><span class="dk">${k}</span><span class="dv">${v}</span></div>`;
+  }
+  html += `</div>`;
+  return html;
+}
+
+function showDataConfirmModal(content, callback) {
+  document.getElementById('dc-content').innerHTML = content;
+  _confirmCallback = callback;
+  document.getElementById('data-confirm-overlay').classList.add('show');
+}
+window.closeConfirmModal = function() {
+  document.getElementById('data-confirm-overlay').classList.remove('show');
+  _confirmCallback = null;
+};
+window.confirmSave = async function() {
+  const btn = document.getElementById('dc-confirm-btn');
+  if (btn) { btn.disabled=true; btn.textContent='登録中...'; }
+  try {
+    if (_confirmCallback) await _confirmCallback();
+  } finally {
+    if (btn) { btn.disabled=false; btn.textContent='✅ 確定して登録'; }
+    document.getElementById('data-confirm-overlay').classList.remove('show');
+    _confirmCallback = null;
+  }
+};
 
 // ═══════════════════════════════════════════════════
 //  Patient helpers
@@ -1486,20 +1638,47 @@ window.submitNewPatient = async function() {
   if (disease==='other' && !diseaseOther) { showErr('np-error','疾患名を入力してください'); return; }
   if (!mode)                              { showErr('np-error','MODEを選択してください'); return; }
 
-  const btn = document.querySelector('#screen-new-patient .btn-orange');
-  if (btn) { btn.disabled=true; btn.textContent='登録中...'; }
+  // 測定値バリデーション
+  if (!validateMeasure('np-error', false)) return;
+
+  // シリアル番号重複チェック
   try {
-    const newId = await getNextPatientId();
-    await savePatient({ id:newId, hospital, disease, diseaseOther, mode, snAR, snVR,
-      discharge: collectMeasure(false), outpatient: null, threeMonth: null });
-    showConfirm(newId, '退院時データが登録されました',
-      `このデータは #${newId} として登録されました。\n次回は外来時（2〜4週後）にデータ入力をお願いします。`);
+    const all = await getAllPatients();
+    if (snAR) {
+      const dup = all.find(x => (x.snAR && x.snAR === snAR) || (x.snVR && x.snVR === snAR));
+      if (dup) { showErr('np-error', `AR SN "${snAR}" は既に #${dup.id}（${dup.hospital}）で登録済みです`); return; }
+    }
+    if (snVR) {
+      const dup = all.find(x => (x.snAR && x.snAR === snVR) || (x.snVR && x.snVR === snVR));
+      if (dup) { showErr('np-error', `VR SN "${snVR}" は既に #${dup.id}（${dup.hospital}）で登録済みです`); return; }
+    }
   } catch(e) {
-    showErr('np-error','データの保存に失敗しました。ネットワークを確認してください。');
-    console.error(e);
-  } finally {
-    if (btn) { btn.disabled=false; btn.textContent='📤 退院時データを登録する'; }
+    showErr('np-error','データの検証に失敗しました。ネットワークを確認してください。');
+    console.error(e); return;
   }
+
+  // 確認画面表示
+  const measureData = collectMeasure(false);
+  const patientInfo = {
+    '病院名': hospital,
+    '疾患': disease==='other' ? diseaseOther : disease,
+    'MODE': mode,
+    'AR SN': snAR || '─',
+    'VR SN': snVR || '─',
+  };
+  const confirmHTML = buildConfirmHTML(patientInfo, measureData, false);
+  showDataConfirmModal(confirmHTML, async () => {
+    try {
+      const newId = await getNextPatientId();
+      await savePatient({ id:newId, hospital, disease, diseaseOther, mode, snAR, snVR,
+        discharge: measureData, outpatient: null, threeMonth: null });
+      showConfirm(newId, '退院時データが登録されました',
+        `このデータは #${newId} として登録されました。\n次回は外来時（2〜4週後）にデータ入力をお願いします。`);
+    } catch(e) {
+      showErr('np-error','データの保存に失敗しました。ネットワークを確認してください。');
+      console.error(e);
+    }
+  });
 };
 
 // ═══════════════════════════════════════════════════
@@ -1517,16 +1696,23 @@ async function renderPatientSelectList() {
       return;
     }
     const nextTxt = {outpatient:'次回: 外来時データ入力', threeMonth:'次回: 3か月後データ入力'};
+    const tpShortNames = {discharge:'退院時', outpatient:'外来時', threeMonth:'3か月後'};
     el.innerHTML = patients.map(p => {
       const st = getStatus(p);
       const done = !st.next;
+      // 入力済みタイムポイントの修正リンク
+      const editLinks = ['discharge','outpatient','threeMonth']
+        .filter(tp => p[tp])
+        .map(tp => `<span onclick="event.stopPropagation();editTimepoint(${p.id},'${tp}')" style="cursor:pointer;color:var(--blue-lt);font-size:.72rem;font-weight:600;text-decoration:underline;margin-left:6px;">✏️${tpShortNames[tp]}</span>`)
+        .join('');
       return `
-        <div class="patient-card ${done?'complete':''}" ${done?'':` onclick="selectPatient(${p.id})"`}>
+        <div class="patient-card" style="${done?'opacity:.75;':''}" ${done?'':` onclick="selectPatient(${p.id})"`}>
           <div style="display:flex; align-items:center;">
             <span class="pat-num">#${p.id}</span>
             <div>
               <div class="pat-name">${esc(p.hospital)}</div>
               <div class="pat-sub">${esc(dLabel(p))} ／ MODE: ${esc(p.mode)}</div>
+              ${editLinks ? `<div style="margin-top:3px;">${editLinks}</div>` : ''}
             </div>
           </div>
           <div style="text-align:right;">
@@ -1544,7 +1730,60 @@ async function renderPatientSelectList() {
 // ═══════════════════════════════════════════════════
 //  Select patient → Add data
 // ═══════════════════════════════════════════════════
-let _pid=null, _tp=null;
+let _pid=null, _tp=null, _editMode=false;
+
+// データ修正: 既存タイムポイントの編集
+window.editTimepoint = async function(id, tp) {
+  try {
+    const snap = await getDoc(doc(db, 'patients', String(id)));
+    if (!snap.exists()) return;
+    const p = snap.data();
+    const existing = p[tp];
+    if (!existing) return;
+    _pid = p.id; _tp = tp; _editMode = true;
+    const inclBat = (tp==='outpatient'||tp==='threeMonth');
+    const tpTitle = {discharge:'退院時データ修正', outpatient:'外来時データ修正', threeMonth:'3か月後データ修正'};
+    document.getElementById('add-data-title').textContent = `#${p.id} ${p.hospital} ─ ${tpTitle[tp]}`;
+    document.getElementById('tp-steps-indicator').innerHTML =
+      ['discharge','outpatient','threeMonth'].map(t => {
+        let cls = t===tp ? 'current' : (p[t] ? 'done' : '');
+        return `<div class="tp-step ${cls}">${TP_LABELS[t]}${cls==='done'?' ✓':''}</div>`;
+      }).join('');
+    document.getElementById('add-data-info').innerHTML = `
+      <div class="alert alert-info" style="margin-bottom:16px;border-left-color:var(--orange);">
+        <strong>⚠️ データ修正モード</strong> ─ 既存データを上書きします<br>
+        <span style="font-size:.8rem;">${esc(p.hospital)} ／ ${esc(dLabel(p))} ／ MODE: ${esc(p.mode)}</span>
+      </div>`;
+    document.getElementById('add-data-fields').innerHTML = '<div id="m-inner"></div>';
+    buildMeasureFields('m-inner', inclBat);
+    // 既存データを入力欄にプリフィル
+    const dateEl = document.getElementById('m-record-date');
+    if (dateEl && existing.recordedAt) dateEl.value = existing.recordedAt;
+    const i2iA = document.getElementById('m-i2i-a');
+    const i2iV = document.getElementById('m-i2i-v');
+    if (i2iA && existing.i2iA) { i2iA.value = existing.i2iA; i2iA.classList.remove('nominal'); }
+    if (i2iV && existing.i2iV) { i2iV.value = existing.i2iV; i2iV.classList.remove('nominal'); }
+    const fills = [
+      ['m-tp-a2v', existing.throughputA2V], ['m-tp-v2a', existing.throughputV2A],
+      ['m-thr-av', existing.thresholdAV], ['m-thr-ams', existing.thresholdAms],
+      ['m-thr-vv', existing.thresholdVV], ['m-thr-vms', existing.thresholdVms],
+      ['m-sense-a', existing.amplitudeA], ['m-sense-v', existing.amplitudeV],
+      ['m-imp-a', existing.impedanceA], ['m-imp-v', existing.impedanceV],
+    ];
+    if (inclBat) {
+      fills.push(['m-bat-a', existing.batteryA], ['m-bat-v', existing.batteryV]);
+    }
+    fills.forEach(([fid, val]) => {
+      const fel = document.getElementById(fid);
+      if (fel && val != null) fel.value = val;
+    });
+    hideErr('add-error');
+    // ボタンテキスト変更
+    const btn = document.querySelector('#screen-add-data .btn-blue');
+    if (btn) btn.textContent = '📤 修正データを登録する';
+    goto('screen-add-data');
+  } catch(e) { console.error(e); }
+};
 
 window.selectPatient = async function(id) {
   try {
@@ -1553,7 +1792,7 @@ window.selectPatient = async function(id) {
     const p = snap.data();
     const st = getStatus(p);
     if (!st.next) return;
-    _pid=p.id; _tp=st.next;
+    _pid=p.id; _tp=st.next; _editMode=false;
     const inclBat = (_tp==='outpatient'||_tp==='threeMonth');
     document.getElementById('add-data-title').textContent = `#${p.id} ${p.hospital} ─ ${TP_TITLES[st.next]}`;
     document.getElementById('tp-steps-indicator').innerHTML =
@@ -1569,6 +1808,9 @@ window.selectPatient = async function(id) {
     document.getElementById('add-data-fields').innerHTML = '<div id="m-inner"></div>';
     buildMeasureFields('m-inner', inclBat);
     hideErr('add-error');
+    // ボタンテキストを通常モードに
+    const btn = document.querySelector('#screen-add-data .btn-blue');
+    if (btn) btn.textContent = '📤 データを登録する';
     goto('screen-add-data');
   } catch(e) { console.error(e); }
 };
@@ -1580,17 +1822,26 @@ window.submitAddData = async function() {
   if (!_pid||!_tp) return;
   hideErr('add-error');
   const inclBat = (_tp==='outpatient'||_tp==='threeMonth');
-  const btn = document.querySelector('#screen-add-data .btn-blue');
-  if (btn) { btn.disabled=true; btn.textContent='登録中...'; }
-  try {
-    await updateDoc(doc(db, 'patients', String(_pid)), { [_tp]: collectMeasure(inclBat) });
-    showConfirm(_pid, TP_CONF[_tp], `#${_pid} のデータが登録されました。\n${TP_MSG[_tp]}`);
-  } catch(e) {
-    showErr('add-error','データの保存に失敗しました。ネットワークを確認してください。');
-    console.error(e);
-  } finally {
-    if (btn) { btn.disabled=false; btn.textContent='📤 データを登録する'; }
-  }
+
+  // 測定値バリデーション
+  if (!validateMeasure('add-error', inclBat)) return;
+
+  // 確認画面表示
+  const measureData = collectMeasure(inclBat);
+  const tpLabel = TP_LABELS[_tp] || _tp;
+  const confirmHTML = `<div class="dc-section"><div class="dc-section-head">📝 #${_pid} ─ ${esc(tpLabel)}</div></div>` +
+    buildConfirmHTML(null, measureData, inclBat);
+  showDataConfirmModal(confirmHTML, async () => {
+    try {
+      await updateDoc(doc(db, 'patients', String(_pid)), { [_tp]: measureData });
+      showConfirm(_pid, _editMode ? 'データが修正されました' : TP_CONF[_tp],
+        _editMode ? `#${_pid} の${tpLabel}データが修正されました。` : `#${_pid} のデータが登録されました。\n${TP_MSG[_tp]}`);
+      _editMode = false;
+    } catch(e) {
+      showErr('add-error','データの保存に失敗しました。ネットワークを確認してください。');
+      console.error(e);
+    }
+  });
 };
 
 // ═══════════════════════════════════════════════════

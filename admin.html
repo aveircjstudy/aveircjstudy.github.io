@@ -3,6 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.gstatic.com https://apis.google.com; connect-src https://firestore.googleapis.com https://*.firebaseio.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://*.googleapis.com; style-src 'self' 'unsafe-inline'; img-src 'self' data:;">
   <title>Aveir CJ Study – 管理者</title>
   <style>
     :root {
@@ -300,6 +302,17 @@
       </table>
     </div>
     <div id="pt-empty" class="empty-state" style="display:none;">登録患者がいません</div>
+  </div>
+
+  <!-- ── CSV Export ── -->
+  <div class="card">
+    <div class="card-title">📥 データエクスポート</div>
+    <p style="font-size:.85rem; color:var(--sub); margin-bottom:16px;">
+      全患者データをCSVファイルとしてダウンロードします。Excel等で分析可能です。
+    </p>
+    <button class="btn btn-blue btn-full" onclick="exportCSV()">
+      📥 CSV ダウンロード
+    </button>
   </div>
 
   <!-- ── Data Management ── -->
@@ -618,6 +631,54 @@ window.deletePatient = async function(id) {
     alert('削除に失敗しました: ' + e.message);
     console.error(e);
   }
+};
+
+// ════════════════════════════════════════
+//  CSV Export
+// ════════════════════════════════════════
+window.exportCSV = function() {
+  if (!_allPatients.length) { alert('エクスポートするデータがありません'); return; }
+  const tpFields = (prefix, d) => {
+    if (!d) return ['','','','','','','','','','','','',''];
+    return [
+      d.recordedAt||'', d.i2iA||'', d.i2iV||'',
+      d.throughputA2V!=null?d.throughputA2V:'', d.throughputV2A!=null?d.throughputV2A:'',
+      d.thresholdAV!=null?d.thresholdAV:'', d.thresholdAms!=null?d.thresholdAms:'',
+      d.thresholdVV!=null?d.thresholdVV:'', d.thresholdVms!=null?d.thresholdVms:'',
+      d.amplitudeA!=null?d.amplitudeA:'', d.amplitudeV!=null?d.amplitudeV:'',
+      d.impedanceA!=null?d.impedanceA:'', d.impedanceV!=null?d.impedanceV:'',
+      ...(d.batteryA!=null ? [d.batteryA] : ['']),
+      ...(d.batteryV!=null ? [d.batteryV] : ['']),
+    ];
+  };
+  const tpHeaders = (prefix) => [
+    `${prefix}_記録日`,`${prefix}_i2i_A`,`${prefix}_i2i_V`,
+    `${prefix}_スループットA2V`,`${prefix}_スループットV2A`,
+    `${prefix}_閾値A_V`,`${prefix}_閾値A_ms`,`${prefix}_閾値V_V`,`${prefix}_閾値V_ms`,
+    `${prefix}_波高値A_mV`,`${prefix}_波高値V_mV`,
+    `${prefix}_インピーダンスA_Ω`,`${prefix}_インピーダンスV_Ω`,
+    `${prefix}_電池AR_年`,`${prefix}_電池VR_年`,
+  ];
+  const headers = [
+    '#','施設','疾患','MODE','AR_SN','VR_SN','ステータス',
+    ...tpHeaders('退院時'), ...tpHeaders('外来時'), ...tpHeaders('3か月後')
+  ];
+  const csvEsc = v => { const s = String(v); return s.includes(',') || s.includes('"') || s.includes('\n') ? `"${s.replace(/"/g,'""')}"` : s; };
+  const rows = _allPatients.map(p => {
+    const st = getStatus(p);
+    return [p.id, p.hospital, dLabel(p), p.mode, p.snAR||'', p.snVR||'', st.label,
+      ...tpFields('退院時', p.discharge), ...tpFields('外来時', p.outpatient), ...tpFields('3か月後', p.threeMonth)
+    ].map(csvEsc).join(',');
+  });
+  const bom = '\uFEFF';
+  const csv = bom + headers.map(csvEsc).join(',') + '\n' + rows.join('\n');
+  const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `AveorCJStudy_${new Date().toISOString().split('T')[0]}.csv`;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 };
 
 window.clearAllData = async function() {
