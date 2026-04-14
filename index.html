@@ -668,6 +668,44 @@
                onkeydown="if(event.key==='Enter')lsLogin()">
       </div>
       <button class="btn btn-blue btn-full" onclick="lsLogin()">ログイン →</button>
+      <div style="text-align:center;margin-top:14px;">
+        <button onclick="lsShowReset()" style="background:none;border:none;color:var(--blue-lt);font-size:.8rem;font-weight:600;cursor:pointer;text-decoration:underline;">パスワードを忘れた方はこちら</button>
+      </div>
+    </div>
+
+    <!-- Step 3: パスワードリセット -->
+    <div id="ls-s1-reset" style="display:none;">
+      <button class="login-back" onclick="lsShowExist()">◀ ログインに戻る</button>
+      <div style="background:var(--orange-bg);border-left:3px solid var(--orange);border-radius:6px;padding:10px 12px;font-size:.82rem;font-weight:600;color:#7a3a00;margin-bottom:16px;">
+        🔑 パスワードをリセットするにはスタディマスターパスワードが必要です
+      </div>
+      <div class="form-group">
+        <label class="form-label">施設を選択</label>
+        <select id="ls-reset-hosp">
+          <option value="">選択してください</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">スタディマスターパスワード</label>
+        <input type="password" id="ls-reset-master" placeholder="スタディパスワードを入力">
+      </div>
+      <div class="form-group">
+        <label class="form-label">新しい施設パスワード</label>
+        <input type="password" id="ls-reset-pw" placeholder="8文字以上・大文字・小文字・数字を含む"
+               oninput="lsCheckResetPwRules()">
+        <div style="margin-top:8px;padding:10px;background:#f4f6f9;border-radius:8px;">
+          <div class="pw-rule" id="ls-reset-rule-len">  <div class="dot"></div> 8文字以上</div>
+          <div class="pw-rule" id="ls-reset-rule-upper"><div class="dot"></div> 英大文字（A〜Z）を含む</div>
+          <div class="pw-rule" id="ls-reset-rule-lower"><div class="dot"></div> 英小文字（a〜z）を含む</div>
+          <div class="pw-rule" id="ls-reset-rule-num">  <div class="dot"></div> 数字（0〜9）を含む</div>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">新しいパスワード（確認）</label>
+        <input type="password" id="ls-reset-pw-confirm" placeholder="もう一度入力"
+               onkeydown="if(event.key==='Enter')lsResetPassword()">
+      </div>
+      <button class="btn btn-orange btn-full" onclick="lsResetPassword()">パスワードをリセット</button>
     </div>
   </div>
 </div>
@@ -679,7 +717,10 @@
     <h1>Aveir CJ Study</h1>
     <p>Aveir DR（AR2＋VR）｜ 3か月短期スタディ データ収集</p>
   </div>
-  <div class="hdr-facility" id="hdr-facility-badge"></div>
+  <div style="display:flex;align-items:center;gap:10px;">
+    <div class="hdr-facility" id="hdr-facility-badge"></div>
+    <button id="logout-btn" onclick="doLogout()" style="display:none;background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.35);border-radius:8px;padding:5px 12px;font-size:.75rem;font-weight:700;color:#fff;cursor:pointer;transition:background .15s;">🚪 ログアウト</button>
+  </div>
 </header>
 
 <div class="container">
@@ -1046,6 +1087,8 @@ window.lsShowStep0 = function() {
   document.getElementById('ls-s0').style.display       = 'block';
   document.getElementById('ls-s1-new').style.display   = 'none';
   document.getElementById('ls-s1-exist').style.display = 'none';
+  const resetEl = document.getElementById('ls-s1-reset');
+  if (resetEl) resetEl.style.display = 'none';
   const err = document.getElementById('login-err');
   err.textContent = ''; err.classList.remove('show');
 };
@@ -1154,7 +1197,102 @@ function enterApp(facility) {
   document.getElementById('login-screen').classList.add('hidden');
   const badge = document.getElementById('hdr-facility-badge');
   if (badge) { badge.textContent = '🏥 ' + facility; badge.classList.add('show'); }
+  const logoutBtn = document.getElementById('logout-btn');
+  if (logoutBtn) logoutBtn.style.display = 'block';
 }
+
+// ═══════════════════════════════════════════════════
+//  Logout
+// ═══════════════════════════════════════════════════
+window.doLogout = function() {
+  sessionStorage.removeItem('authed');
+  sessionStorage.removeItem('fl_facility');
+  const badge = document.getElementById('hdr-facility-badge');
+  if (badge) { badge.textContent = ''; badge.classList.remove('show'); }
+  const logoutBtn = document.getElementById('logout-btn');
+  if (logoutBtn) logoutBtn.style.display = 'none';
+  document.getElementById('login-screen').classList.remove('hidden');
+  window.lsShowStep0();
+  // 全screenを非アクティブにしてwelcomeに戻す
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('screen-welcome').classList.add('active');
+};
+
+// ═══════════════════════════════════════════════════
+//  Password reset
+// ═══════════════════════════════════════════════════
+window.lsShowReset = async function() {
+  await authReady;
+  const pws = await loadFacilityPW();
+  const registered = Object.keys(pws);
+  if (!registered.length) {
+    const err = document.getElementById('login-err');
+    err.textContent = '⚠ 登録済みの施設がありません。'; err.classList.add('show');
+    return;
+  }
+  const sel = document.getElementById('ls-reset-hosp');
+  sel.innerHTML = '<option value="">選択してください</option>' +
+    registered.map(h => `<option value="${esc(h)}">${esc(h)}</option>`).join('');
+  document.getElementById('ls-reset-master').value = '';
+  document.getElementById('ls-reset-pw').value = '';
+  document.getElementById('ls-reset-pw-confirm').value = '';
+  ['ls-reset-rule-len','ls-reset-rule-upper','ls-reset-rule-lower','ls-reset-rule-num'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.className = 'pw-rule';
+  });
+  document.getElementById('ls-s0').style.display       = 'none';
+  document.getElementById('ls-s1-new').style.display   = 'none';
+  document.getElementById('ls-s1-exist').style.display = 'none';
+  document.getElementById('ls-s1-reset').style.display = 'block';
+  const err = document.getElementById('login-err');
+  err.textContent = ''; err.classList.remove('show');
+};
+
+window.lsCheckResetPwRules = function() {
+  const pw = (document.getElementById('ls-reset-pw')?.value) || '';
+  const rules = {
+    'ls-reset-rule-len':   pw.length >= 8,
+    'ls-reset-rule-upper': /[A-Z]/.test(pw),
+    'ls-reset-rule-lower': /[a-z]/.test(pw),
+    'ls-reset-rule-num':   /[0-9]/.test(pw),
+  };
+  Object.entries(rules).forEach(([id, ok]) => {
+    const el = document.getElementById(id);
+    if (el) el.className = 'pw-rule' + (ok ? ' ok' : '');
+  });
+  return Object.values(rules).every(Boolean);
+};
+
+window.lsResetPassword = async function() {
+  const err = document.getElementById('login-err');
+  err.classList.remove('show');
+  const hosp   = document.getElementById('ls-reset-hosp').value;
+  const master = document.getElementById('ls-reset-master').value;
+  const pw1    = document.getElementById('ls-reset-pw').value;
+  const pw2    = document.getElementById('ls-reset-pw-confirm').value;
+  if (!hosp)                        { err.textContent='⚠ 施設を選択してください'; err.classList.add('show'); return; }
+  if (master !== STUDY_PW)          { err.textContent='⚠ スタディマスターパスワードが正しくありません'; err.classList.add('show'); return; }
+  if (!window.lsCheckResetPwRules()){ err.textContent='⚠ パスワードの条件を全て満たしてください'; err.classList.add('show'); return; }
+  if (pw1 !== pw2)                  { err.textContent='⚠ パスワードが一致しません'; err.classList.add('show'); return; }
+  try {
+    await authReady;
+    const hashed = await hashPw(pw1);
+    await updateDoc(doc(db, 'facilities', hosp), { password: hashed });
+    err.textContent = ''; err.classList.remove('show');
+    // 成功メッセージ表示してログイン画面に戻す
+    const successErr = document.getElementById('login-err');
+    successErr.textContent = '✅ パスワードをリセットしました。新しいパスワードでログインしてください。';
+    successErr.style.background = 'var(--green-bg)'; successErr.style.color = 'var(--green)';
+    successErr.style.borderLeftColor = 'var(--green)';
+    successErr.classList.add('show');
+    setTimeout(() => {
+      successErr.style.background = ''; successErr.style.color = ''; successErr.style.borderLeftColor = '';
+      window.lsShowExist();
+    }, 2500);
+  } catch(e) {
+    err.textContent = '⚠ パスワードのリセットに失敗しました'; err.classList.add('show');
+    console.error(e);
+  }
+};
 
 // ページ読み込み時
 if (sessionStorage.getItem('authed') === '1') {
@@ -1162,6 +1300,8 @@ if (sessionStorage.getItem('authed') === '1') {
   const fac = sessionStorage.getItem('fl_facility');
   const badge = document.getElementById('hdr-facility-badge');
   if (badge && fac) { badge.textContent = '🏥 ' + fac; badge.classList.add('show'); }
+  const logoutBtn = document.getElementById('logout-btn');
+  if (logoutBtn) logoutBtn.style.display = 'block';
 } else {
   window.lsShowStep0();
 }

@@ -78,10 +78,17 @@
     }
     header h1 { font-size: 1.2rem; font-weight: 700; }
     header p  { font-size: .72rem; opacity: .85; margin-top: 1px; }
+    .hdr-right { display: flex; align-items: center; gap: 10px; }
     .admin-badge {
       background: rgba(255,255,255,.15); border: 1px solid rgba(255,255,255,.3);
       border-radius: 8px; padding: 4px 12px; font-size: .75rem; font-weight: 700;
     }
+    .logout-btn {
+      background: rgba(255,255,255,.18); border: 1px solid rgba(255,255,255,.35);
+      border-radius: 8px; padding: 5px 12px; font-size: .75rem; font-weight: 700;
+      color: #fff; cursor: pointer; transition: background .15s;
+    }
+    .logout-btn:hover { background: rgba(255,255,255,.3); }
 
     /* ── Layout ── */
     .container { max-width: 960px; margin: 0 auto; padding: 28px 16px 80px; }
@@ -179,6 +186,9 @@
     /* ── Empty ── */
     .empty-state { text-align: center; color: var(--sub); padding: 36px 0; font-size: .9rem; }
 
+    /* ── Loading ── */
+    .loading-state { text-align: center; color: var(--sub); padding: 36px 0; font-size: .9rem; }
+
     /* ── Responsive ── */
     @media (max-width:600px) {
       .stat-grid { grid-template-columns: repeat(2,1fr); }
@@ -210,7 +220,10 @@
       <p>管理者ダッシュボード</p>
     </div>
   </div>
-  <div class="admin-badge">🔒 管理者</div>
+  <div class="hdr-right">
+    <div class="admin-badge">🔒 管理者</div>
+    <button class="logout-btn" onclick="adminLogout()">🚪 ログアウト</button>
+  </div>
 </header>
 
 <div class="container">
@@ -302,23 +315,57 @@
 
 </div>
 
-<script>
+<script type="module">
 // ════════════════════════════════════════
-//  ★ 管理者パスワードをここで変更できます
+//  Firebase
 // ════════════════════════════════════════
-const ADMIN_PW = 'AveirCJstudy';
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.12.0/firebase-app.js";
+import { getFirestore, collection, doc, getDoc, setDoc, deleteDoc, getDocs, query, orderBy }
+  from "https://www.gstatic.com/firebasejs/12.12.0/firebase-firestore.js";
+import { getAuth, signInAnonymously }
+  from "https://www.gstatic.com/firebasejs/12.12.0/firebase-auth.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyD92ndAO-95l4r7TwjwNplVs5XTWHifHfU",
+  authDomain: "aveircjstudy.firebaseapp.com",
+  projectId: "aveircjstudy",
+  storageBucket: "aveircjstudy.firebasestorage.app",
+  messagingSenderId: "1002437043226",
+  appId: "1:1002437043226:web:80917b2fcb27549d2fdda3"
+};
+const app = initializeApp(firebaseConfig);
+const db  = getFirestore(app);
+const auth = getAuth(app);
+const authReady = signInAnonymously(auth).catch(e => console.error('Auth error:', e));
 
 // ════════════════════════════════════════
-//  Storage（index.html と同じキー）
+//  XSS prevention
 // ════════════════════════════════════════
-const KEY = 'aveir_cj_v3';
-const loadDB = () => { try { return JSON.parse(localStorage.getItem(KEY)) || {patients:[]}; } catch { return {patients:[]}; } };
-const saveDB = db => localStorage.setItem(KEY, JSON.stringify(db));
+function esc(s) {
+  if (!s) return '';
+  const d = document.createElement('div');
+  d.textContent = String(s);
+  return d.innerHTML;
+}
+
+// ════════════════════════════════════════
+//  Firestore helpers
+// ════════════════════════════════════════
+async function getAllPatients() {
+  await authReady;
+  const snap = await getDocs(query(collection(db, 'patients'), orderBy('id')));
+  return snap.docs.map(d => d.data());
+}
+
+// ════════════════════════════════════════
+//  ★ 管理者パスワード
+// ════════════════════════════════════════
+const ADMIN_PW = 'AveirCJStudyadmin';
 
 // ════════════════════════════════════════
 //  Login
 // ════════════════════════════════════════
-function checkLogin() {
+window.checkLogin = function() {
   if (document.getElementById('login-pw').value === ADMIN_PW) {
     sessionStorage.setItem('admin_authed','1');
     document.getElementById('login-screen').classList.add('hidden');
@@ -328,7 +375,16 @@ function checkLogin() {
     document.getElementById('login-pw').value = '';
     document.getElementById('login-pw').focus();
   }
-}
+};
+
+window.adminLogout = function() {
+  sessionStorage.removeItem('admin_authed');
+  document.getElementById('login-screen').classList.remove('hidden');
+  document.getElementById('login-pw').value = '';
+  document.getElementById('login-err').classList.remove('show');
+  setTimeout(() => document.getElementById('login-pw').focus(), 100);
+};
+
 if (sessionStorage.getItem('admin_authed') === '1') {
   document.getElementById('login-screen').classList.add('hidden');
   renderAll();
@@ -350,21 +406,34 @@ const getStatus = p => {
 function fmt(v, unit='') { return v != null ? `${v}${unit}` : '─'; }
 
 // ════════════════════════════════════════
+//  Cached patient data
+// ════════════════════════════════════════
+let _allPatients = [];
+
+// ════════════════════════════════════════
 //  Render everything
 // ════════════════════════════════════════
-function renderAll() {
-  const db = loadDB();
-  const ps = db.patients;
-  renderStats(ps);
-  buildHospFilter(ps);
-  renderTable(ps);
+async function renderAll() {
+  // Show loading
+  document.getElementById('stat-grid').innerHTML = '<div class="loading-state">データ読み込み中...</div>';
+  try {
+    _allPatients = await getAllPatients();
+  } catch(e) {
+    document.getElementById('stat-grid').innerHTML = '<div style="color:var(--red);padding:10px;">データの読み込みに失敗しました。ネットワークを確認してください。</div>';
+    console.error(e);
+    return;
+  }
+  renderStats(_allPatients);
+  buildHospFilter(_allPatients);
+  renderTable(_allPatients);
 }
+window.renderAll = renderAll;
 
 function buildHospFilter(ps) {
   const sel = document.getElementById('hosp-filter');
   const hospitals = [...new Set(ps.map(p => p.hospital))].sort();
   sel.innerHTML = '<option value="">すべての施設</option>' +
-    hospitals.map(h => `<option value="${h}">${h}</option>`).join('');
+    hospitals.map(h => `<option value="${esc(h)}">${esc(h)}</option>`).join('');
   updateFilterCount(ps.length);
 }
 
@@ -372,13 +441,12 @@ function updateFilterCount(n) {
   document.getElementById('filter-count').textContent = `N = ${n}`;
 }
 
-function applyFilter() {
-  const db   = loadDB();
+window.applyFilter = function() {
   const hosp = document.getElementById('hosp-filter').value;
-  const ps   = hosp ? db.patients.filter(p => p.hospital === hosp) : db.patients;
+  const ps   = hosp ? _allPatients.filter(p => p.hospital === hosp) : _allPatients;
   updateFilterCount(ps.length);
   renderTable(ps);
-}
+};
 
 // ════════════════════════════════════════
 //  Statistics
@@ -444,7 +512,7 @@ function renderBars(id, items, total) {
     const pct = total > 0 ? Math.round(n/total*100) : 0;
     return `
       <div class="bar-row">
-        <div class="bar-label" title="${label}">${label}</div>
+        <div class="bar-label" title="${esc(label)}">${esc(label)}</div>
         <div class="bar-track">
           <div class="bar-fill" style="width:${pct}%;background:${color};">
             ${pct >= 15 ? `<span>${pct}%</span>` : ''}
@@ -475,20 +543,17 @@ function renderTable(ps) {
 
   tbody.innerHTML = ps.map(p => {
     const st = getStatus(p);
-    const chips = ['discharge','outpatient','threeMonth'].map(tp =>
-      `<span class="tp-chip ${p[tp]?'done':'empty'}">${tpShort[tp]}${p[tp]?' ✓':''}</span>`
-    ).join('');
     return `
       <tr class="expandable" onclick="toggleDetail(${p.id})">
         <td><strong style="color:var(--orange);">#${p.id}</strong></td>
-        <td>${p.hospital}</td>
-        <td>${dLabel(p)}</td>
-        <td><span style="font-weight:700;">${p.mode}</span></td>
-        <td style="font-size:.78rem;">${p.snAR||'─'}</td>
-        <td style="font-size:.78rem;">${p.snVR||'─'}</td>
-        <td>${p.discharge  ? `<span class="tp-chip done">✓ ${p.discharge.recordedAt}</span>`  : '<span class="tp-chip empty">未入力</span>'}</td>
-        <td>${p.outpatient ? `<span class="tp-chip done">✓ ${p.outpatient.recordedAt}</span>` : '<span class="tp-chip empty">未入力</span>'}</td>
-        <td>${p.threeMonth ? `<span class="tp-chip done">✓ ${p.threeMonth.recordedAt}</span>` : '<span class="tp-chip empty">未入力</span>'}</td>
+        <td>${esc(p.hospital)}</td>
+        <td>${esc(dLabel(p))}</td>
+        <td><span style="font-weight:700;">${esc(p.mode)}</span></td>
+        <td style="font-size:.78rem;">${esc(p.snAR||'─')}</td>
+        <td style="font-size:.78rem;">${esc(p.snVR||'─')}</td>
+        <td>${p.discharge  ? `<span class="tp-chip done">✓ ${esc(p.discharge.recordedAt)}</span>`  : '<span class="tp-chip empty">未入力</span>'}</td>
+        <td>${p.outpatient ? `<span class="tp-chip done">✓ ${esc(p.outpatient.recordedAt)}</span>` : '<span class="tp-chip empty">未入力</span>'}</td>
+        <td>${p.threeMonth ? `<span class="tp-chip done">✓ ${esc(p.threeMonth.recordedAt)}</span>` : '<span class="tp-chip empty">未入力</span>'}</td>
         <td><span class="badge ${st.badge}">${st.label}</span></td>
         <td>
           <button class="btn btn-red" style="padding:4px 10px;font-size:.75rem;"
@@ -505,10 +570,10 @@ function renderTable(ps) {
   }).join('');
 }
 
-function toggleDetail(id) {
+window.toggleDetail = function(id) {
   const row = document.getElementById(`detail-${id}`);
   row.style.display = row.style.display === 'none' ? 'table-row' : 'none';
-}
+};
 
 function buildDetailHTML(p) {
   const tps = [
@@ -544,21 +609,30 @@ function buildDetailHTML(p) {
 // ════════════════════════════════════════
 //  Data management
 // ════════════════════════════════════════
-function deletePatient(id) {
+window.deletePatient = async function(id) {
   if (!confirm(`#${id} のデータを削除します。よろしいですか？`)) return;
-  const db = loadDB();
-  db.patients = db.patients.filter(p => p.id !== id);
-  // Renumber IDs
-  db.patients.forEach((p, i) => p.id = i + 1);
-  saveDB(db);
-  renderAll();
-}
+  try {
+    await deleteDoc(doc(db, 'patients', String(id)));
+    await renderAll();
+  } catch(e) {
+    alert('削除に失敗しました: ' + e.message);
+    console.error(e);
+  }
+};
 
-function clearAllData() {
+window.clearAllData = async function() {
   if (!confirm('全データを削除します。この操作は取り消せません。本当に実行しますか？')) return;
-  localStorage.removeItem(KEY);
-  renderAll();
-}
+  if (!confirm('本当に全データを完全に削除しますか？（最終確認）')) return;
+  try {
+    const snap = await getDocs(collection(db, 'patients'));
+    const promises = snap.docs.map(d => deleteDoc(d.ref));
+    await Promise.all(promises);
+    await renderAll();
+  } catch(e) {
+    alert('削除に失敗しました: ' + e.message);
+    console.error(e);
+  }
+};
 </script>
 </body>
 </html>
