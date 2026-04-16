@@ -297,8 +297,12 @@
 
     <div style="display:grid; grid-template-columns:1fr 1fr; gap:24px;">
       <div class="bar-section">
-        <h3>MODE 別</h3>
-        <div id="bar-mode2" style="display:none;"></div>
+        <h3>性別 別</h3>
+        <div id="bar-sex"></div>
+      </div>
+      <div class="bar-section">
+        <h3>年齢 層別</h3>
+        <div id="bar-age"></div>
       </div>
     </div>
   </div>
@@ -324,6 +328,7 @@
             <th>#</th>
             <th>施設</th>
             <th>疾患</th>
+            <th>性別/年齢</th>
             <th>MODE</th>
             <th>AR SN</th>
             <th>VR SN</th>
@@ -531,8 +536,9 @@ function renderStats(ps) {
   `;
 
   if (!total) {
-    ['bar-mode','bar-disease','bar-hospital','bar-progress'].forEach(id => {
-      document.getElementById(id).innerHTML = '<div style="color:var(--sub);font-size:.83rem;">データなし</div>';
+    ['bar-mode','bar-disease','bar-hospital','bar-sex','bar-age'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.innerHTML = '<div style="color:var(--sub);font-size:.83rem;">データなし</div>';
     });
     return;
   }
@@ -561,6 +567,34 @@ function renderStats(ps) {
     .map(([label,d])=>({label:`${label} (${d.complete}/${d.total})`, n:d.total, color:'#00695c'}))
     .sort((a,b)=>b.n-a.n);
   renderBars('bar-hospital', hospArr, total);
+
+  // Sex
+  const mN = ps.filter(p=>p.sex==='男性').length;
+  const fN = ps.filter(p=>p.sex==='女性').length;
+  const unkN = ps.filter(p=>!p.sex).length;
+  const sexArr = [
+    {label:'男性', n:mN, color:'#1565c0'},
+    {label:'女性', n:fN, color:'#ad1457'},
+  ].filter(d=>d.n>0);
+  if (unkN) sexArr.push({label:'未入力', n:unkN, color:'#9e9e9e'});
+  renderBars('bar-sex', sexArr, total);
+
+  // Age groups
+  const ageBuckets = [
+    {label:'〜49 歳',  min:0,  max:49,  color:'#00acc1'},
+    {label:'50〜64 歳', min:50, max:64,  color:'#00897b'},
+    {label:'65〜74 歳', min:65, max:74,  color:'#43a047'},
+    {label:'75〜84 歳', min:75, max:84,  color:'#f9a825'},
+    {label:'85 歳〜',   min:85, max:200, color:'#e65100'},
+  ];
+  const ageArr = ageBuckets.map(b => ({
+    label: b.label,
+    n: ps.filter(p=>p.age!=null && p.age>=b.min && p.age<=b.max).length,
+    color: b.color,
+  })).filter(d=>d.n>0);
+  const ageUnk = ps.filter(p=>p.age==null).length;
+  if (ageUnk) ageArr.push({label:'未入力', n:ageUnk, color:'#9e9e9e'});
+  renderBars('bar-age', ageArr, total);
 }
 
 function renderBars(id, items, total) {
@@ -606,6 +640,7 @@ function renderTable(ps) {
         <td><strong style="color:var(--orange);">#${p.id}</strong></td>
         <td>${esc(p.hospital)}</td>
         <td>${esc(dLabel(p))}</td>
+        <td style="font-size:.8rem;">${esc(p.sex||'─')}${p.age!=null?` / ${esc(String(p.age))}歳`:' / ─'}</td>
         <td><span style="font-weight:700;">${esc(p.mode)}</span></td>
         <td style="font-size:.78rem;">${esc(p.snAR||'─')}</td>
         <td style="font-size:.78rem;">${esc(p.snVR||'─')}</td>
@@ -619,7 +654,7 @@ function renderTable(ps) {
         </td>
       </tr>
       <tr id="detail-${p.id}" style="display:none;">
-        <td colspan="11">
+        <td colspan="12">
           <div class="detail-inner">
             ${buildDetailHTML(p)}
           </div>
@@ -639,7 +674,16 @@ function buildDetailHTML(p) {
     {key:'outpatient', label:'② 外来時（2〜4週）'},
     {key:'threeMonth', label:'③ 3か月後'},
   ];
-  return `<div class="detail-grid">` +
+  const basic = `
+    <div style="margin-bottom:12px; padding:10px 14px; background:#f1f5fa; border-radius:8px; font-size:.82rem; display:flex; flex-wrap:wrap; gap:14px;">
+      <span><strong>性別:</strong> ${esc(p.sex||'─')}</span>
+      <span><strong>年齢:</strong> ${p.age!=null?esc(String(p.age))+'歳':'─'}</span>
+      <span><strong>疾患:</strong> ${esc(dLabel(p))}</span>
+      <span><strong>MODE:</strong> ${esc(p.mode||'─')}</span>
+      <span><strong>AR SN:</strong> ${esc(p.snAR||'─')}</span>
+      <span><strong>VR SN:</strong> ${esc(p.snVR||'─')}</span>
+    </div>`;
+  return basic + `<div class="detail-grid">` +
     tps.map(({key,label}) => {
       const d = p[key];
       if (!d) return `<div class="detail-section"><h4>${label}</h4><div style="color:var(--sub);font-size:.82rem;">未入力</div></div>`;
@@ -656,6 +700,7 @@ function buildDetailHTML(p) {
         ['インピーダンス A', fmt(d.impedanceA, ' Ω')],
         ['インピーダンス V', fmt(d.impedanceV, ' Ω')],
         ...(d.batteryA != null ? [['電池寿命 AR', fmt(d.batteryA, ' 年')], ['電池寿命 VR', fmt(d.batteryV, ' 年')]] : []),
+        ...(d.pacingRateA != null || d.pacingRateV != null ? [['ペーシング率 A', fmt(d.pacingRateA, ' %')], ['ペーシング率 V', fmt(d.pacingRateV, ' %')]] : []),
       ];
       return `<div class="detail-section">
         <h4>${label}</h4>
@@ -684,7 +729,7 @@ window.deletePatient = async function(id) {
 window.exportCSV = function() {
   if (!_allPatients.length) { alert('エクスポートするデータがありません'); return; }
   const tpFields = (prefix, d) => {
-    if (!d) return ['','','','','','','','','','','','',''];
+    if (!d) return ['','','','','','','','','','','','','','','','',''];
     return [
       d.recordedAt||'', d.i2iA||'', d.i2iV||'',
       d.throughputA2V!=null?d.throughputA2V:'', d.throughputV2A!=null?d.throughputV2A:'',
@@ -692,8 +737,8 @@ window.exportCSV = function() {
       d.thresholdVV!=null?d.thresholdVV:'', d.thresholdVms!=null?d.thresholdVms:'',
       d.amplitudeA!=null?d.amplitudeA:'', d.amplitudeV!=null?d.amplitudeV:'',
       d.impedanceA!=null?d.impedanceA:'', d.impedanceV!=null?d.impedanceV:'',
-      ...(d.batteryA!=null ? [d.batteryA] : ['']),
-      ...(d.batteryV!=null ? [d.batteryV] : ['']),
+      d.batteryA!=null?d.batteryA:'', d.batteryV!=null?d.batteryV:'',
+      d.pacingRateA!=null?d.pacingRateA:'', d.pacingRateV!=null?d.pacingRateV:'',
     ];
   };
   const tpHeaders = (prefix) => [
@@ -703,15 +748,16 @@ window.exportCSV = function() {
     `${prefix}_波高値A_mV`,`${prefix}_波高値V_mV`,
     `${prefix}_インピーダンスA_Ω`,`${prefix}_インピーダンスV_Ω`,
     `${prefix}_電池AR_年`,`${prefix}_電池VR_年`,
+    `${prefix}_ペーシング率A_%`,`${prefix}_ペーシング率V_%`,
   ];
   const headers = [
-    '#','施設','疾患','MODE','AR_SN','VR_SN','ステータス',
+    '#','施設','疾患','性別','年齢','MODE','AR_SN','VR_SN','ステータス',
     ...tpHeaders('退院時'), ...tpHeaders('外来時'), ...tpHeaders('3か月後')
   ];
   const csvEsc = v => { const s = String(v); return s.includes(',') || s.includes('"') || s.includes('\n') ? `"${s.replace(/"/g,'""')}"` : s; };
   const rows = _allPatients.map(p => {
     const st = getStatus(p);
-    return [p.id, p.hospital, dLabel(p), p.mode, p.snAR||'', p.snVR||'', st.label,
+    return [p.id, p.hospital, dLabel(p), p.sex||'', p.age!=null?p.age:'', p.mode, p.snAR||'', p.snVR||'', st.label,
       ...tpFields('退院時', p.discharge), ...tpFields('外来時', p.outpatient), ...tpFields('3か月後', p.threeMonth)
     ].map(csvEsc).join(',');
   });

@@ -821,6 +821,28 @@
         </div>
       </div>
 
+      <!-- 性別・年齢 -->
+      <div class="form-group">
+        <label class="form-label">患者情報（性別・年齢）</label>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+          <div>
+            <div style="font-size:.78rem; font-weight:700; color:var(--blue); margin-bottom:5px;">性別</div>
+            <select id="np-sex">
+              <option value="">選択してください</option>
+              <option value="男性">男性</option>
+              <option value="女性">女性</option>
+            </select>
+          </div>
+          <div>
+            <div style="font-size:.78rem; font-weight:700; color:var(--blue); margin-bottom:5px;">年齢</div>
+            <div class="input-unit">
+              <input type="number" id="np-age" min="0" max="120" step="1" placeholder="例: 75">
+              <span class="unit">歳</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- ③ MODE -->
       <div class="form-group">
         <label class="form-label"><span class="num-tag">3</span>MODE</label>
@@ -833,20 +855,20 @@
 
       <!-- Device Serial -->
       <div class="form-group">
-        <label class="form-label">デバイスシリアル番号</label>
+        <label class="form-label">デバイスシリアル番号 <span style="font-weight:400;color:var(--text-sub);font-size:.75rem;">（7桁の数字）</span></label>
         <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
           <div>
             <div style="font-size:.78rem; font-weight:700; color:var(--blue); margin-bottom:5px;">Aveir AR（心房側）</div>
             <div class="input-unit">
               <span class="unit" style="min-width:28px; font-weight:700;">SN</span>
-              <input type="text" id="np-sn-ar" placeholder="例: 2287168">
+              <input type="text" id="np-sn-ar" placeholder="7桁（例: 2287168）" maxlength="7" inputmode="numeric" pattern="[0-9]{7}">
             </div>
           </div>
           <div>
             <div style="font-size:.78rem; font-weight:700; color:var(--blue); margin-bottom:5px;">Aveir VR（心室側）</div>
             <div class="input-unit">
               <span class="unit" style="min-width:28px; font-weight:700;">SN</span>
-              <input type="text" id="np-sn-vr" placeholder="例: 2729304">
+              <input type="text" id="np-sn-vr" placeholder="7桁（例: 2729304）" maxlength="7" inputmode="numeric" pattern="[0-9]{7}">
             </div>
           </div>
         </div>
@@ -1359,8 +1381,8 @@ window.goto = goto;
 window.gotoNewPatient = function() {
   buildMeasureFields('np-measure-fields', false);
   hideErr('np-error');
-  ['np-sn-ar','np-sn-vr'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
-  ['np-disease','np-mode'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
+  ['np-sn-ar','np-sn-vr','np-age'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
+  ['np-disease','np-mode','np-sex'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
   const ow = document.getElementById('np-other-wrap');
   if (ow) ow.style.display='none';
   // 施設名を自動入力＆ロック
@@ -1488,6 +1510,15 @@ function buildMeasureFields(containerId, inclBat) {
         <div class="input-unit"><input type="number" id="m-bat-a" min="0" max="25" step="0.1" placeholder="7.0"><span class="unit">年</span></div>
         <div class="input-unit"><input type="number" id="m-bat-v" min="0" max="25" step="0.1" placeholder="11.0"><span class="unit">年</span></div>
       </div>
+    </div>
+    <div class="form-group">
+      <div class="section-head"><span class="num-tag">10</span>ペーシング率</div>
+      <div class="av-grid three-col">
+        <div></div><div class="av-col-label">心房（A）</div><div class="av-col-label">心室（V）</div>
+        <div class="av-row-label">ペーシング率</div>
+        <div class="input-unit"><input type="number" id="m-pace-a" min="0" max="100" step="1" placeholder="例: 45"><span class="unit">%</span></div>
+        <div class="input-unit"><input type="number" id="m-pace-v" min="0" max="100" step="1" placeholder="例: 80"><span class="unit">%</span></div>
+      </div>
     </div>` : ''}
   `;
 }
@@ -1508,7 +1539,12 @@ function collectMeasure(inclBat) {
     impedanceA: nv('m-imp-a'),   impedanceV: nv('m-imp-v'),
     recordedAt: dateEl ? dateEl.value : new Date().toISOString().split('T')[0],
   };
-  if (inclBat) { d.batteryA = nv('m-bat-a'); d.batteryV = nv('m-bat-v'); }
+  if (inclBat) {
+    d.batteryA = nv('m-bat-a');
+    d.batteryV = nv('m-bat-v');
+    d.pacingRateA = nv('m-pace-a');
+    d.pacingRateV = nv('m-pace-v');
+  }
   return d;
 }
 
@@ -1534,6 +1570,8 @@ function validateMeasure(errId, inclBat) {
   if (inclBat) {
     checks.push({id:'m-bat-a', name:'電池寿命 AR', min:0, max:25});
     checks.push({id:'m-bat-v', name:'電池寿命 VR', min:0, max:25});
+    checks.push({id:'m-pace-a', name:'ペーシング率 A', min:0, max:100});
+    checks.push({id:'m-pace-v', name:'ペーシング率 V', min:0, max:100});
   }
   for (const c of checks) {
     const v = nv(c.id);
@@ -1574,6 +1612,7 @@ function buildConfirmHTML(patientInfo, measureData, inclBat) {
   ];
   if (inclBat) {
     rows.push(['電池寿命 AR', fmt(d.batteryA,' 年')], ['電池寿命 VR', fmt(d.batteryV,' 年')]);
+    rows.push(['ペーシング率 A', fmt(d.pacingRateA,' %')], ['ペーシング率 V', fmt(d.pacingRateV,' %')]);
   }
   for (const [k,v] of rows) {
     html += `<div class="dc-row"><span class="dk">${k}</span><span class="dv">${v}</span></div>`;
@@ -1629,6 +1668,9 @@ window.submitNewPatient = async function() {
   const hospital     = document.getElementById('np-hospital').value.trim();
   const disease      = document.getElementById('np-disease').value;
   const diseaseOther = disease==='other' ? document.getElementById('np-disease-other').value.trim() : '';
+  const sex          = document.getElementById('np-sex').value;
+  const ageRaw       = document.getElementById('np-age').value.trim();
+  const age          = ageRaw !== '' ? parseInt(ageRaw, 10) : null;
   const mode         = document.getElementById('np-mode').value;
   const snAR         = document.getElementById('np-sn-ar').value.trim();
   const snVR         = document.getElementById('np-sn-vr').value.trim();
@@ -1636,7 +1678,18 @@ window.submitNewPatient = async function() {
   if (!hospital)                          { showErr('np-error','病院名を入力してください'); return; }
   if (!disease)                           { showErr('np-error','疾患を選択してください'); return; }
   if (disease==='other' && !diseaseOther) { showErr('np-error','疾患名を入力してください'); return; }
+  if (!sex)                               { showErr('np-error','性別を選択してください'); document.getElementById('np-sex')?.focus(); return; }
+  if (age===null || isNaN(age))           { showErr('np-error','年齢を入力してください'); document.getElementById('np-age')?.focus(); return; }
+  if (age < 0 || age > 120)               { showErr('np-error','年齢は 0〜120 の範囲で入力してください'); document.getElementById('np-age')?.focus(); return; }
   if (!mode)                              { showErr('np-error','MODEを選択してください'); return; }
+
+  // シリアル番号 7桁バリデーション
+  const snPat = /^[0-9]{7}$/;
+  if (!snAR) { showErr('np-error','AR SN（心房側）を入力してください'); document.getElementById('np-sn-ar')?.focus(); return; }
+  if (!snPat.test(snAR)) { showErr('np-error','AR SN は7桁の数字で入力してください'); document.getElementById('np-sn-ar')?.focus(); return; }
+  if (!snVR) { showErr('np-error','VR SN（心室側）を入力してください'); document.getElementById('np-sn-vr')?.focus(); return; }
+  if (!snPat.test(snVR)) { showErr('np-error','VR SN は7桁の数字で入力してください'); document.getElementById('np-sn-vr')?.focus(); return; }
+  if (snAR === snVR) { showErr('np-error','AR SN と VR SN が同一です。正しい番号を入力してください'); return; }
 
   // 測定値バリデーション
   if (!validateMeasure('np-error', false)) return;
@@ -1662,15 +1715,17 @@ window.submitNewPatient = async function() {
   const patientInfo = {
     '病院名': hospital,
     '疾患': disease==='other' ? diseaseOther : disease,
+    '性別': sex,
+    '年齢': age!=null ? `${age} 歳` : '─',
     'MODE': mode,
-    'AR SN': snAR || '─',
-    'VR SN': snVR || '─',
+    'AR SN': snAR,
+    'VR SN': snVR,
   };
   const confirmHTML = buildConfirmHTML(patientInfo, measureData, false);
   showDataConfirmModal(confirmHTML, async () => {
     try {
       const newId = await getNextPatientId();
-      await savePatient({ id:newId, hospital, disease, diseaseOther, mode, snAR, snVR,
+      await savePatient({ id:newId, hospital, disease, diseaseOther, sex, age, mode, snAR, snVR,
         discharge: measureData, outpatient: null, threeMonth: null });
       showConfirm(newId, '退院時データが登録されました',
         `このデータは #${newId} として登録されました。\n次回は外来時（2〜4週後）にデータ入力をお願いします。`);
@@ -1711,7 +1766,7 @@ async function renderPatientSelectList() {
             <span class="pat-num">#${p.id}</span>
             <div>
               <div class="pat-name">${esc(p.hospital)}</div>
-              <div class="pat-sub">${esc(dLabel(p))} ／ MODE: ${esc(p.mode)}</div>
+              <div class="pat-sub">${esc(dLabel(p))}${(p.sex||p.age!=null)?` ／ ${esc(p.sex||'─')}・${p.age!=null?esc(p.age+'歳'):'─'}`:''} ／ MODE: ${esc(p.mode)}</div>
               ${editLinks ? `<div style="margin-top:3px;">${editLinks}</div>` : ''}
             </div>
           </div>
@@ -1772,6 +1827,7 @@ window.editTimepoint = async function(id, tp) {
     ];
     if (inclBat) {
       fills.push(['m-bat-a', existing.batteryA], ['m-bat-v', existing.batteryV]);
+      fills.push(['m-pace-a', existing.pacingRateA], ['m-pace-v', existing.pacingRateV]);
     }
     fills.forEach(([fid, val]) => {
       const fel = document.getElementById(fid);
@@ -1800,9 +1856,10 @@ window.selectPatient = async function(id) {
         let cls=''; if(p[tp]) cls='done'; else if(tp===st.next) cls='current';
         return `<div class="tp-step ${cls}">${TP_LABELS[tp]}${cls==='done'?' ✓':''}</div>`;
       }).join('');
+    const sexAgeStr = (p.sex || p.age!=null) ? ` ／ ${esc(p.sex||'─')}・${p.age!=null?esc(p.age+'歳'):'─'}` : '';
     document.getElementById('add-data-info').innerHTML = `
       <div class="alert alert-info" style="margin-bottom:16px;">
-        <strong>${esc(p.hospital)}</strong> ／ 疾患: ${esc(dLabel(p))} ／ MODE: ${esc(p.mode)}<br>
+        <strong>${esc(p.hospital)}</strong> ／ 疾患: ${esc(dLabel(p))}${sexAgeStr} ／ MODE: ${esc(p.mode)}<br>
         <span style="font-size:.8rem;">AR SN: ${esc(p.snAR||'─')} ／ VR SN: ${esc(p.snVR||'─')}</span>
       </div>`;
     document.getElementById('add-data-fields').innerHTML = '<div id="m-inner"></div>';
@@ -1883,7 +1940,7 @@ function renderFacilityData(hosp, allDocs) {
           <div class="p-num">#${p.id}</div>
           <div class="p-info"><div class="sub">AR: ${esc(p.snAR||'─')}</div><div class="sub">VR: ${esc(p.snVR||'─')}</div></div>
           <div style="text-align:center;"><span class="p-mode ${modeCls}">${esc(p.mode)}</span></div>
-          <div style="font-size:.83rem;font-weight:600;">${esc(dLabel(p))}</div>
+          <div style="font-size:.83rem;font-weight:600;">${esc(dLabel(p))}${(p.sex||p.age!=null)?`<div style="font-size:.72rem;font-weight:400;color:var(--text-sub);">${esc(p.sex||'─')}・${p.age!=null?esc(p.age+'歳'):'─'}</div>`:''}</div>
           <div class="tp-cells">
             <div class="tp-cell"><span class="tp-lbl">退院時</span>${tp('discharge')}</div>
             <div class="tp-cell"><span class="tp-lbl">外来時</span>${tp('outpatient')}</div>
@@ -1937,8 +1994,9 @@ window.doLookup = async function() {
     const nextTxt = {outpatient:'次回: 外来時データ入力', threeMonth:'次回: 3か月後データ入力'};
     document.getElementById('lr-num').textContent      = `#${p.id}`;
     document.getElementById('lr-hospital').textContent = p.hospital;
+    const sexAgeStr2 = (p.sex || p.age!=null) ? ` ／ ${p.sex||'─'}・${p.age!=null?p.age+'歳':'─'}` : '';
     document.getElementById('lr-sub').textContent      =
-      `疾患: ${esc(dLabel(p))} ／ MODE: ${esc(p.mode)} ／ AR SN: ${esc(p.snAR||'─')} ／ VR SN: ${esc(p.snVR||'─')}`;
+      `疾患: ${esc(dLabel(p))}${sexAgeStr2} ／ MODE: ${esc(p.mode)} ／ AR SN: ${esc(p.snAR||'─')} ／ VR SN: ${esc(p.snVR||'─')}`;
     document.getElementById('lr-chips').innerHTML =
       ['discharge','outpatient','threeMonth'].map(tp => {
         const done=!!p[tp];
