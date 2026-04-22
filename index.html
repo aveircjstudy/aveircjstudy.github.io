@@ -1418,9 +1418,6 @@ function goto(id) {
 window.goto = goto;
 
 window.gotoNewPatient = function() {
-  // 重複IDを防ぐため add-data フォーム側を先にクリア
-  const mInner = document.getElementById('m-inner');
-  if (mInner) mInner.innerHTML = '';
   buildMeasureFields('np-measure-fields', false);
   hideErr('np-error');
   ['np-sn-ar','np-sn-vr','np-age'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
@@ -1571,29 +1568,34 @@ function buildMeasureFields(containerId, inclBat) {
 // ═══════════════════════════════════════════════════
 //  Collect measurement values
 // ═══════════════════════════════════════════════════
-// スコープ付きID検索: m-innerが存在すればその中を、なければ全体から
-function _qid(id) {
-  const scope = document.getElementById('m-inner') || document.getElementById('np-measure-fields');
-  return scope ? (scope.querySelector(`#${id}`) || document.getElementById(id)) : document.getElementById(id);
+// コンテナを明示的に受け取り、その中のIDを検索（重複ID問題を完全排除）
+function nvIn(container, id) {
+  const el = container.querySelector(`#${id}`);
+  if (!el) return null;
+  const v = el.value;
+  return v !== '' ? parseFloat(v) : null;
 }
-function nv(id) { const el=_qid(id); if(!el) return null; const v=el.value; return v!=='' ? parseFloat(v) : null; }
-function collectMeasure(inclBat) {
-  const dateEl = _qid('m-record-date');
+function collectMeasure(inclBat, container) {
+  const c = container || document.getElementById('m-inner') || document.getElementById('np-measure-fields');
+  if (!c) return {};
+  const dateEl = c.querySelector('#m-record-date');
+  const _dn = new Date();
+  const todayLocal = `${_dn.getFullYear()}-${String(_dn.getMonth()+1).padStart(2,'0')}-${String(_dn.getDate()).padStart(2,'0')}`;
   const d = {
-    i2iA: parseInt(_qid('m-i2i-a')?.value)||null,
-    i2iV: parseInt(_qid('m-i2i-v')?.value)||null,
-    throughputA2V: nv('m-tp-a2v'), throughputV2A: nv('m-tp-v2a'),
-    thresholdAV: nv('m-thr-av'), thresholdAms: nv('m-thr-ams'),
-    thresholdVV: nv('m-thr-vv'), thresholdVms: nv('m-thr-vms'),
-    amplitudeA: nv('m-sense-a'), amplitudeV: nv('m-sense-v'),
-    impedanceA: nv('m-imp-a'),   impedanceV: nv('m-imp-v'),
-    recordedAt: dateEl ? dateEl.value : (() => { const _d=new Date(); return `${_d.getFullYear()}-${String(_d.getMonth()+1).padStart(2,'0')}-${String(_d.getDate()).padStart(2,'0')}`; })(),
+    i2iA: parseInt(c.querySelector('#m-i2i-a')?.value)||null,
+    i2iV: parseInt(c.querySelector('#m-i2i-v')?.value)||null,
+    throughputA2V: nvIn(c,'m-tp-a2v'), throughputV2A: nvIn(c,'m-tp-v2a'),
+    thresholdAV: nvIn(c,'m-thr-av'),   thresholdAms: nvIn(c,'m-thr-ams'),
+    thresholdVV: nvIn(c,'m-thr-vv'),   thresholdVms: nvIn(c,'m-thr-vms'),
+    amplitudeA: nvIn(c,'m-sense-a'),   amplitudeV: nvIn(c,'m-sense-v'),
+    impedanceA: nvIn(c,'m-imp-a'),     impedanceV: nvIn(c,'m-imp-v'),
+    recordedAt: dateEl ? dateEl.value : todayLocal,
   };
   if (inclBat) {
-    d.batteryA = nv('m-bat-a');
-    d.batteryV = nv('m-bat-v');
-    d.pacingRateA = nv('m-pace-a');
-    d.pacingRateV = nv('m-pace-v');
+    d.batteryA    = nvIn(c,'m-bat-a');
+    d.batteryV    = nvIn(c,'m-bat-v');
+    d.pacingRateA = nvIn(c,'m-pace-a');
+    d.pacingRateV = nvIn(c,'m-pace-v');
   }
   return d;
 }
@@ -1601,8 +1603,10 @@ function collectMeasure(inclBat) {
 // ═══════════════════════════════════════════════════
 //  Measurement validation
 // ═══════════════════════════════════════════════════
-function validateMeasure(errId, inclBat) {
-  const dateEl = _qid('m-record-date');
+function validateMeasure(errId, inclBat, container) {
+  const c = container || document.getElementById('m-inner') || document.getElementById('np-measure-fields');
+  if (!c) return true;
+  const dateEl = c.querySelector('#m-record-date');
   if (!dateEl || !dateEl.value) { showErr(errId, '記録日を入力してください'); return false; }
   // Range checks
   const checks = [
@@ -1618,16 +1622,16 @@ function validateMeasure(errId, inclBat) {
     {id:'m-imp-v',   name:'インピーダンス V',  min:50, max:3000},
   ];
   if (inclBat) {
-    checks.push({id:'m-bat-a', name:'電池寿命 AR', min:0, max:25});
-    checks.push({id:'m-bat-v', name:'電池寿命 VR', min:0, max:25});
-    checks.push({id:'m-pace-a', name:'ペーシング率 A', min:0, max:100});
-    checks.push({id:'m-pace-v', name:'ペーシング率 V', min:0, max:100});
+    checks.push({id:'m-bat-a',  name:'電池寿命 AR',    min:0, max:25});
+    checks.push({id:'m-bat-v',  name:'電池寿命 VR',    min:0, max:25});
+    checks.push({id:'m-pace-a', name:'ペーシング率 A',  min:0, max:100});
+    checks.push({id:'m-pace-v', name:'ペーシング率 V',  min:0, max:100});
   }
-  for (const c of checks) {
-    const v = nv(c.id);
-    if (v !== null && (isNaN(v) || v < c.min || v > c.max)) {
-      showErr(errId, `${c.name} の値が範囲外です（${c.min}〜${c.max}）`);
-      _qid(c.id)?.focus();
+  for (const chk of checks) {
+    const v = nvIn(c, chk.id);
+    if (v !== null && (isNaN(v) || v < chk.min || v > chk.max)) {
+      showErr(errId, `${chk.name} の値が範囲外です（${chk.min}〜${chk.max}）`);
+      c.querySelector(`#${chk.id}`)?.focus();
       return false;
     }
   }
@@ -1817,8 +1821,9 @@ window.submitNewPatient = async function() {
   if (!snPat.test(snVR)) { showErr('np-error','VR SN は7桁の数字で入力してください'); document.getElementById('np-sn-vr')?.focus(); return; }
   if (snAR === snVR) { showErr('np-error','AR SN と VR SN が同一です。正しい番号を入力してください'); return; }
 
-  // 測定値バリデーション
-  if (!validateMeasure('np-error', false)) return;
+  // 測定値バリデーション（np-measure-fields を明示指定）
+  const npContainer = document.getElementById('np-measure-fields');
+  if (!validateMeasure('np-error', false, npContainer)) return;
 
   // シリアル番号重複チェック
   try {
@@ -1836,8 +1841,8 @@ window.submitNewPatient = async function() {
     console.error(e); return;
   }
 
-  // 確認画面表示
-  const measureData = collectMeasure(false);
+  // 確認画面表示（np-measure-fields を明示指定）
+  const measureData = collectMeasure(false, npContainer);
   const patientInfo = {
     '病院名': hospital,
     '疾患': disease==='other' ? diseaseOther : disease,
@@ -1928,32 +1933,30 @@ window.editTimepoint = async function(id, tp) {
         <strong>⚠️ データ修正モード</strong> ─ 既存データを上書きします<br>
         <span style="font-size:.8rem;">${esc(p.hospital)} ／ ${esc(dLabel(p))} ／ MODE: ${esc(p.mode)}</span>
       </div>`;
-    // 重複IDを防ぐため新患者フォーム側を先にクリア
-    const npMf = document.getElementById('np-measure-fields');
-    if (npMf) npMf.innerHTML = '';
     document.getElementById('add-data-fields').innerHTML = '<div id="m-inner"></div>';
     buildMeasureFields('m-inner', inclBat);
-    // 既存データを入力欄にプリフィル
+    // 既存データを入力欄にプリフィル（m-inner を直接参照）
     const mInnerEl = document.getElementById('m-inner');
-    const dateEl = mInnerEl ? mInnerEl.querySelector('#m-record-date') : document.getElementById('m-record-date');
+    if (!mInnerEl) return;
+    const dateEl = mInnerEl.querySelector('#m-record-date');
     if (dateEl && existing.recordedAt) dateEl.value = existing.recordedAt;
-    const i2iA = mInnerEl ? mInnerEl.querySelector('#m-i2i-a') : document.getElementById('m-i2i-a');
-    const i2iV = mInnerEl ? mInnerEl.querySelector('#m-i2i-v') : document.getElementById('m-i2i-v');
+    const i2iA = mInnerEl.querySelector('#m-i2i-a');
+    const i2iV = mInnerEl.querySelector('#m-i2i-v');
     if (i2iA && existing.i2iA) { i2iA.value = existing.i2iA; i2iA.classList.remove('nominal'); }
     if (i2iV && existing.i2iV) { i2iV.value = existing.i2iV; i2iV.classList.remove('nominal'); }
     const fills = [
       ['m-tp-a2v', existing.throughputA2V], ['m-tp-v2a', existing.throughputV2A],
-      ['m-thr-av', existing.thresholdAV], ['m-thr-ams', existing.thresholdAms],
-      ['m-thr-vv', existing.thresholdVV], ['m-thr-vms', existing.thresholdVms],
-      ['m-sense-a', existing.amplitudeA], ['m-sense-v', existing.amplitudeV],
-      ['m-imp-a', existing.impedanceA], ['m-imp-v', existing.impedanceV],
+      ['m-thr-av', existing.thresholdAV],   ['m-thr-ams', existing.thresholdAms],
+      ['m-thr-vv', existing.thresholdVV],   ['m-thr-vms', existing.thresholdVms],
+      ['m-sense-a', existing.amplitudeA],   ['m-sense-v', existing.amplitudeV],
+      ['m-imp-a', existing.impedanceA],     ['m-imp-v', existing.impedanceV],
     ];
     if (inclBat) {
-      fills.push(['m-bat-a', existing.batteryA], ['m-bat-v', existing.batteryV]);
-      fills.push(['m-pace-a', existing.pacingRateA], ['m-pace-v', existing.pacingRateV]);
+      fills.push(['m-bat-a', existing.batteryA],       ['m-bat-v', existing.batteryV]);
+      fills.push(['m-pace-a', existing.pacingRateA],   ['m-pace-v', existing.pacingRateV]);
     }
     fills.forEach(([fid, val]) => {
-      const fel = mInnerEl ? mInnerEl.querySelector(`#${fid}`) : document.getElementById(fid);
+      const fel = mInnerEl.querySelector(`#${fid}`);
       if (fel && val != null) fel.value = val;
     });
     hideErr('add-error');
@@ -1988,9 +1991,6 @@ window.selectPatient = async function(id) {
         <strong>${esc(p.hospital)}</strong> ／ 疾患: ${esc(dLabel(p))}${sexAgeStr} ／ MODE: ${esc(p.mode)}<br>
         <span style="font-size:.8rem;">AR SN: ${esc(p.snAR||'─')} ／ VR SN: ${esc(p.snVR||'─')}</span>
       </div>`;
-    // 重複IDを防ぐため新患者フォーム側を先にクリア
-    const npMf2 = document.getElementById('np-measure-fields');
-    if (npMf2) npMf2.innerHTML = '';
     document.getElementById('add-data-fields').innerHTML = '<div id="m-inner"></div>';
     buildMeasureFields('m-inner', inclBat);
     hideErr('add-error');
@@ -2016,11 +2016,15 @@ window.submitAddData = async function() {
   hideErr('add-error');
   const inclBat = (_tp==='outpatient'||_tp==='threeMonth');
 
+  // m-inner を明示指定（重複ID問題を完全排除）
+  const addContainer = document.getElementById('m-inner');
+  if (!addContainer) { showErr('add-error','フォームが見つかりません。画面を読み込み直してください。'); return; }
+
   // 測定値バリデーション
-  if (!validateMeasure('add-error', inclBat)) return;
+  if (!validateMeasure('add-error', inclBat, addContainer)) return;
 
   // 確認画面表示
-  const measureData = collectMeasure(inclBat);
+  const measureData = collectMeasure(inclBat, addContainer);
   const tpLabel = TP_LABELS[_tp] || _tp;
   const confirmHTML = `<div class="dc-section"><div class="dc-section-head">📝 #${_pid} ─ ${esc(tpLabel)}</div></div>` +
     buildConfirmHTML(null, measureData, inclBat);
