@@ -697,11 +697,11 @@ function buildDetailHTML(p) {
         ['スループット V2A', fmt(d.throughputV2A, '%')],
         ['閾値 A',        d.thresholdAV != null ? `${f1(d.thresholdAV,'V')} @ ${f1(d.thresholdAms,'ms')}` : '─'],
         ['閾値 V',        d.thresholdVV != null ? `${f1(d.thresholdVV,'V')} @ ${f1(d.thresholdVms,'ms')}` : '─'],
-        ['波高値 A',      f1(d.amplitudeA, ' mV')],
-        ['波高値 V',      f1(d.amplitudeV, ' mV')],
+        ['波高値 A',      f1(d.amplitudeA, 'mV')],
+        ['波高値 V',      f1(d.amplitudeV, 'mV')],
         ['インピーダンス A', fmt(d.impedanceA, ' Ω')],
         ['インピーダンス V', fmt(d.impedanceV, ' Ω')],
-        ...(d.batteryA != null ? [['電池寿命 AR', f1(d.batteryA, ' y')], ['電池寿命 VR', f1(d.batteryV, ' y')]] : []),
+        ...(d.batteryA != null ? [['電池寿命 AR', f1(d.batteryA, 'y')], ['電池寿命 VR', f1(d.batteryV, 'y')]] : []),
         ...(d.pacingRateA != null || d.pacingRateV != null ? [['ペーシング率 A', fmt(d.pacingRateA, ' %')], ['ペーシング率 V', fmt(d.pacingRateV, ' %')]] : []),
       ];
       return `<div class="detail-section">

@@ -1697,12 +1697,12 @@ function buildPatientDetailTPHTML(p) {
     row('TP V2A',       fi(dis?.throughputV2A,'%'),         fi(out?.throughputV2A,'%'),         fi(thr?.throughputV2A,'%')),
     row('閾値 A',       fmtThrA(dis),                      fmtThrA(out),                      fmtThrA(thr)),
     row('閾値 V',       fmtThrV(dis),                      fmtThrV(out),                      fmtThrV(thr)),
-    row('波高値 A',     f1(dis?.amplitudeA,' mV'),          f1(out?.amplitudeA,' mV'),          f1(thr?.amplitudeA,' mV')),
-    row('波高値 V',     f1(dis?.amplitudeV,' mV'),          f1(out?.amplitudeV,' mV'),          f1(thr?.amplitudeV,' mV')),
+    row('波高値 A',     f1(dis?.amplitudeA,'mV'),          f1(out?.amplitudeA,'mV'),          f1(thr?.amplitudeA,'mV')),
+    row('波高値 V',     f1(dis?.amplitudeV,'mV'),          f1(out?.amplitudeV,'mV'),          f1(thr?.amplitudeV,'mV')),
     row('Imp A',        fi(dis?.impedanceA,' Ω'),           fi(out?.impedanceA,' Ω'),           fi(thr?.impedanceA,' Ω')),
     row('Imp V',        fi(dis?.impedanceV,' Ω'),           fi(out?.impedanceV,' Ω'),           fi(thr?.impedanceV,' Ω')),
-    row('電池 AR',      '─',                               f1(out?.batteryA,' y'),             f1(thr?.batteryA,' y')),
-    row('電池 VR',      '─',                               f1(out?.batteryV,' y'),             f1(thr?.batteryV,' y')),
+    row('電池 AR',      '─',                               f1(out?.batteryA,'y'),             f1(thr?.batteryA,'y')),
+    row('電池 VR',      '─',                               f1(out?.batteryV,'y'),             f1(thr?.batteryV,'y')),
     row('ペーシング A', '─',                               fi(out?.pacingRateA,' %'),           fi(thr?.pacingRateA,' %')),
     row('ペーシング V', '─',                               fi(out?.pacingRateV,' %'),           fi(thr?.pacingRateV,' %')),
   ];
@@ -1780,11 +1780,11 @@ function buildConfirmHTML(patientInfo, measureData, inclBat) {
     ['スループット A2V', fi(d.throughputA2V,'%')], ['スループット V2A', fi(d.throughputV2A,'%')],
     ['閾値 A', d.thresholdAV!=null ? `${f1(d.thresholdAV,'V')} @ ${f1(d.thresholdAms,'ms')}` : '─'],
     ['閾値 V', d.thresholdVV!=null ? `${f1(d.thresholdVV,'V')} @ ${f1(d.thresholdVms,'ms')}` : '─'],
-    ['波高値 A', f1(d.amplitudeA,' mV')], ['波高値 V', f1(d.amplitudeV,' mV')],
+    ['波高値 A', f1(d.amplitudeA,'mV')], ['波高値 V', f1(d.amplitudeV,'mV')],
     ['インピーダンス A', fi(d.impedanceA,' Ω')], ['インピーダンス V', fi(d.impedanceV,' Ω')],
   ];
   if (inclBat) {
-    rows.push(['電池寿命 AR', f1(d.batteryA,' y')], ['電池寿命 VR', f1(d.batteryV,' y')]);
+    rows.push(['電池寿命 AR', f1(d.batteryA,'y')], ['電池寿命 VR', f1(d.batteryV,'y')]);
     rows.push(['ペーシング率 A', fi(d.pacingRateA,' %')], ['ペーシング率 V', fi(d.pacingRateV,' %')]);
   }
   for (const [k,v] of rows) {
