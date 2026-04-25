@@ -1536,14 +1536,35 @@ function buildMeasureFields(containerId, inclBat) {
     </div>
     <div class="form-group">
       <div class="section-head"><span class="num-tag">6</span>閾値データ（Capture Threshold）</div>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;font-size:.82rem;color:var(--text-sub);">
+        <span>パルス幅:</span><strong style="color:var(--text-main);">0.4ms</strong><span style="color:#bbb;">（標準・固定）</span>
+      </div>
       <div class="av-grid three-col" style="grid-template-columns: auto 1fr 1fr;">
-        <div></div><div class="av-col-label">電圧（V）</div><div class="av-col-label">パルス幅（ms）</div>
-        <div class="av-row-label">心房（A）</div>
+        <div></div><div class="av-col-label">心房（A）電圧</div><div class="av-col-label">心室（V）電圧</div>
+        <div class="av-row-label">閾値@0.4ms</div>
         <div class="input-unit"><input type="number" id="m-thr-av"  min="0" max="10" step="0.1" placeholder="1.5"><span class="unit">V</span></div>
-        <div class="input-unit"><input type="number" id="m-thr-ams" min="0" max="2"  step="0.1" placeholder="0.4"><span class="unit">ms</span></div>
-        <div class="av-row-label">心室（V）</div>
         <div class="input-unit"><input type="number" id="m-thr-vv"  min="0" max="10" step="0.1" placeholder="1.0"><span class="unit">V</span></div>
-        <div class="input-unit"><input type="number" id="m-thr-vms" min="0" max="2"  step="0.1" placeholder="0.4"><span class="unit">ms</span></div>
+      </div>
+      <div id="m-alt-thr-add-row" style="margin-top:8px;">
+        <button type="button" class="btn" style="font-size:.79rem;padding:5px 12px;background:#f0f7ff;color:var(--blue);border:1.5px dashed var(--blue);border-radius:6px;" onclick="addAltThr('${containerId}')">＋ 別パルス幅を追加</button>
+      </div>
+      <div id="m-alt-thr-section" style="display:none;margin-top:10px;padding:10px 12px;background:#f4f8ff;border-radius:8px;border:1.5px solid #aec8ef;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+          <span style="font-size:.82rem;font-weight:600;">追加パルス幅での閾値</span>
+          <button type="button" style="font-size:.78rem;background:none;border:none;color:var(--text-sub);cursor:pointer;padding:2px 6px;" onclick="removeAltThr('${containerId}')">✕ 削除</button>
+        </div>
+        <div style="margin-bottom:8px;">
+          <label style="font-size:.8rem;color:var(--text-sub);display:block;margin-bottom:4px;">パルス幅（ms）</label>
+          <div class="input-unit" style="max-width:140px;">
+            <input type="number" id="m-thr-alt-ms" min="0.1" max="2" step="0.05" placeholder="0.25"><span class="unit">ms</span>
+          </div>
+        </div>
+        <div class="av-grid three-col" style="grid-template-columns: auto 1fr 1fr;">
+          <div></div><div class="av-col-label">心房（A）電圧</div><div class="av-col-label">心室（V）電圧</div>
+          <div class="av-row-label">閾値@?ms</div>
+          <div class="input-unit"><input type="number" id="m-thr-alt-av" min="0" max="10" step="0.1" placeholder="2.5"><span class="unit">V</span></div>
+          <div class="input-unit"><input type="number" id="m-thr-alt-vv" min="0" max="10" step="0.1" placeholder="1.5"><span class="unit">V</span></div>
+        </div>
       </div>
     </div>
     <div class="form-group">
@@ -1586,6 +1607,28 @@ function buildMeasureFields(containerId, inclBat) {
   `;
 }
 
+// ─── Alt threshold toggle ─────────────────────────
+window.addAltThr = function(containerId) {
+  const c = document.getElementById(containerId);
+  if (!c) return;
+  const sec    = c.querySelector('#m-alt-thr-section');
+  const addRow = c.querySelector('#m-alt-thr-add-row');
+  if (sec)    sec.style.display    = 'block';
+  if (addRow) addRow.style.display = 'none';
+};
+window.removeAltThr = function(containerId) {
+  const c = document.getElementById(containerId);
+  if (!c) return;
+  const sec    = c.querySelector('#m-alt-thr-section');
+  const addRow = c.querySelector('#m-alt-thr-add-row');
+  if (sec)    sec.style.display    = 'none';
+  if (addRow) addRow.style.display = 'block';
+  ['m-thr-alt-ms','m-thr-alt-av','m-thr-alt-vv'].forEach(id => {
+    const el = c.querySelector(`#${id}`);
+    if (el) el.value = '';
+  });
+};
+
 // ═══════════════════════════════════════════════════
 //  Collect measurement values
 // ═══════════════════════════════════════════════════
@@ -1606,12 +1649,22 @@ function collectMeasure(inclBat, container) {
     i2iA: parseInt(c.querySelector('#m-i2i-a')?.value)||null,
     i2iV: parseInt(c.querySelector('#m-i2i-v')?.value)||null,
     throughputA2V: nvIn(c,'m-tp-a2v'), throughputV2A: nvIn(c,'m-tp-v2a'),
-    thresholdAV: nvIn(c,'m-thr-av'),   thresholdAms: nvIn(c,'m-thr-ams'),
-    thresholdVV: nvIn(c,'m-thr-vv'),   thresholdVms: nvIn(c,'m-thr-vms'),
+    thresholdAV: nvIn(c,'m-thr-av'),   thresholdAms: 0.4,   // 0.4ms固定
+    thresholdVV: nvIn(c,'m-thr-vv'),   thresholdVms: 0.4,   // 0.4ms固定
     amplitudeA: nvIn(c,'m-sense-a'),   amplitudeV: nvIn(c,'m-sense-v'),
     impedanceA: nvIn(c,'m-imp-a'),     impedanceV: nvIn(c,'m-imp-v'),
     recordedAt: dateEl ? dateEl.value : todayLocal,
   };
+  // 別パルス幅閾値（セクションが表示されている場合のみ収集）
+  const altSec = c.querySelector('#m-alt-thr-section');
+  if (altSec && altSec.style.display !== 'none') {
+    const altMs = nvIn(c, 'm-thr-alt-ms');
+    if (altMs != null) {
+      d.altThresholdMs = altMs;
+      d.altThresholdAV = nvIn(c, 'm-thr-alt-av');
+      d.altThresholdVV = nvIn(c, 'm-thr-alt-vv');
+    }
+  }
   if (inclBat) {
     d.batteryA    = nvIn(c,'m-bat-a');
     d.batteryV    = nvIn(c,'m-bat-v');
@@ -1634,9 +1687,7 @@ function validateMeasure(errId, inclBat, container) {
     {id:'m-tp-a2v',  name:'スループット A2V', min:0, max:100},
     {id:'m-tp-v2a',  name:'スループット V2A', min:0, max:100},
     {id:'m-thr-av',  name:'閾値 A 電圧',     min:0, max:10},
-    {id:'m-thr-ams', name:'閾値 A パルス幅',  min:0, max:2},
     {id:'m-thr-vv',  name:'閾値 V 電圧',     min:0, max:10},
-    {id:'m-thr-vms', name:'閾値 V パルス幅',  min:0, max:2},
     {id:'m-sense-a', name:'波高値 A',        min:0, max:50},
     {id:'m-sense-v', name:'波高値 V',        min:0, max:50},
     {id:'m-imp-a',   name:'インピーダンス A',  min:50, max:3000},
@@ -1654,6 +1705,33 @@ function validateMeasure(errId, inclBat, container) {
       showErr(errId, `${chk.name} の値が範囲外です（${chk.min}〜${chk.max}）`);
       c.querySelector(`#${chk.id}`)?.focus();
       return false;
+    }
+  }
+  // 別パルス幅セクションのバリデーション
+  const altSec = c.querySelector('#m-alt-thr-section');
+  if (altSec && altSec.style.display !== 'none') {
+    const altMs = nvIn(c, 'm-thr-alt-ms');
+    if (altMs === null) {
+      showErr(errId, '追加パルス幅（ms）を入力してください');
+      c.querySelector('#m-thr-alt-ms')?.focus();
+      return false;
+    }
+    if (isNaN(altMs) || altMs < 0.1 || altMs > 2) {
+      showErr(errId, '追加パルス幅は 0.1〜2.0ms の範囲で入力してください');
+      c.querySelector('#m-thr-alt-ms')?.focus();
+      return false;
+    }
+    const altVChecks = [
+      {id:'m-thr-alt-av', name:'追加パルス幅 閾値 A'},
+      {id:'m-thr-alt-vv', name:'追加パルス幅 閾値 V'},
+    ];
+    for (const chk of altVChecks) {
+      const v = nvIn(c, chk.id);
+      if (v !== null && (isNaN(v) || v < 0 || v > 10)) {
+        showErr(errId, `${chk.name} の値が範囲外です（0〜10V）`);
+        c.querySelector(`#${chk.id}`)?.focus();
+        return false;
+      }
     }
   }
   return true;
@@ -1686,8 +1764,10 @@ function buildPatientDetailTPHTML(p) {
     </div>`;
   };
 
-  const fmtThrA = (d) => d && d.thresholdAV!=null ? `${f1(d.thresholdAV,'V')}/${f1(d.thresholdAms,'ms')}` : '─';
-  const fmtThrV = (d) => d && d.thresholdVV!=null ? `${f1(d.thresholdVV,'V')}/${f1(d.thresholdVms,'ms')}` : '─';
+  const fmtThrA = (d) => d && d.thresholdAV!=null ? `${f1(d.thresholdAV,'V')}@0.4ms` : '─';
+  const fmtThrV = (d) => d && d.thresholdVV!=null ? `${f1(d.thresholdVV,'V')}@0.4ms` : '─';
+  const fmtAltA = (d) => d && d.altThresholdMs!=null ? `${d.altThresholdAV!=null?f1(d.altThresholdAV,'V'):'─'}@${f1(d.altThresholdMs,'ms')}` : '─';
+  const fmtAltV = (d) => d && d.altThresholdMs!=null ? `${d.altThresholdVV!=null?f1(d.altThresholdVV,'V'):'─'}@${f1(d.altThresholdMs,'ms')}` : '─';
 
   const rows = [
     row('記録日',       fi(dis?.recordedAt),               fi(out?.recordedAt),               fi(thr?.recordedAt)),
@@ -1697,6 +1777,8 @@ function buildPatientDetailTPHTML(p) {
     row('TP V2A',       fi(dis?.throughputV2A,'%'),         fi(out?.throughputV2A,'%'),         fi(thr?.throughputV2A,'%')),
     row('閾値 A',       fmtThrA(dis),                      fmtThrA(out),                      fmtThrA(thr)),
     row('閾値 V',       fmtThrV(dis),                      fmtThrV(out),                      fmtThrV(thr)),
+    row('閾値A(別PW)',  fmtAltA(dis),                      fmtAltA(out),                      fmtAltA(thr)),
+    row('閾値V(別PW)',  fmtAltV(dis),                      fmtAltV(out),                      fmtAltV(thr)),
     row('波高値 A',     f1(dis?.amplitudeA,'mV'),          f1(out?.amplitudeA,'mV'),          f1(thr?.amplitudeA,'mV')),
     row('波高値 V',     f1(dis?.amplitudeV,'mV'),          f1(out?.amplitudeV,'mV'),          f1(thr?.amplitudeV,'mV')),
     row('Imp A',        fi(dis?.impedanceA,' Ω'),           fi(out?.impedanceA,' Ω'),           fi(thr?.impedanceA,' Ω')),
@@ -1778,8 +1860,12 @@ function buildConfirmHTML(patientInfo, measureData, inclBat) {
     ['記録日', d.recordedAt||'─'],
     ['i2i レベル A', fi(d.i2iA)], ['i2i レベル V', fi(d.i2iV)],
     ['スループット A2V', fi(d.throughputA2V,'%')], ['スループット V2A', fi(d.throughputV2A,'%')],
-    ['閾値 A', d.thresholdAV!=null ? `${f1(d.thresholdAV,'V')} @ ${f1(d.thresholdAms,'ms')}` : '─'],
-    ['閾値 V', d.thresholdVV!=null ? `${f1(d.thresholdVV,'V')} @ ${f1(d.thresholdVms,'ms')}` : '─'],
+    ['閾値 A', d.thresholdAV!=null ? `${f1(d.thresholdAV,'V')} @ 0.4ms` : '─'],
+    ['閾値 V', d.thresholdVV!=null ? `${f1(d.thresholdVV,'V')} @ 0.4ms` : '─'],
+    ...(d.altThresholdMs!=null ? [
+      ['閾値A（別PW）', `${d.altThresholdAV!=null?f1(d.altThresholdAV,'V'):'─'} @ ${f1(d.altThresholdMs,'ms')}`],
+      ['閾値V（別PW）', `${d.altThresholdVV!=null?f1(d.altThresholdVV,'V'):'─'} @ ${f1(d.altThresholdMs,'ms')}`],
+    ] : []),
     ['波高値 A', f1(d.amplitudeA,'mV')], ['波高値 V', f1(d.amplitudeV,'mV')],
     ['インピーダンス A', fi(d.impedanceA,' Ω')], ['インピーダンス V', fi(d.impedanceV,' Ω')],
   ];
@@ -1989,8 +2075,7 @@ window.editTimepoint = async function(id, tp) {
     if (i2iV && existing.i2iV) { i2iV.value = existing.i2iV; i2iV.classList.remove('nominal'); }
     const fills = [
       ['m-tp-a2v', existing.throughputA2V], ['m-tp-v2a', existing.throughputV2A],
-      ['m-thr-av', existing.thresholdAV],   ['m-thr-ams', existing.thresholdAms],
-      ['m-thr-vv', existing.thresholdVV],   ['m-thr-vms', existing.thresholdVms],
+      ['m-thr-av', existing.thresholdAV],   ['m-thr-vv', existing.thresholdVV],
       ['m-sense-a', existing.amplitudeA],   ['m-sense-v', existing.amplitudeV],
       ['m-imp-a', existing.impedanceA],     ['m-imp-v', existing.impedanceV],
     ];
@@ -2002,6 +2087,16 @@ window.editTimepoint = async function(id, tp) {
       const fel = mInnerEl.querySelector(`#${fid}`);
       if (fel && val != null) fel.value = val;
     });
+    // 別パルス幅データがあれば展開してプリフィル
+    if (existing.altThresholdMs != null) {
+      addAltThr('m-inner');
+      [['m-thr-alt-ms', existing.altThresholdMs],
+       ['m-thr-alt-av', existing.altThresholdAV],
+       ['m-thr-alt-vv', existing.altThresholdVV]].forEach(([fid, val]) => {
+        const fel = mInnerEl.querySelector(`#${fid}`);
+        if (fel && val != null) fel.value = val;
+      });
+    }
     hideErr('add-error');
     // 戻るボタン → 詳細画面へ
     const addBackBtn = document.getElementById('add-data-back-btn');

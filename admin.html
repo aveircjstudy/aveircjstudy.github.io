@@ -695,8 +695,12 @@ function buildDetailHTML(p) {
         ['i2i レベル V',  fmt(d.i2iV)],
         ['スループット A2V', fmt(d.throughputA2V, '%')],
         ['スループット V2A', fmt(d.throughputV2A, '%')],
-        ['閾値 A',        d.thresholdAV != null ? `${f1(d.thresholdAV,'V')} @ ${f1(d.thresholdAms,'ms')}` : '─'],
-        ['閾値 V',        d.thresholdVV != null ? `${f1(d.thresholdVV,'V')} @ ${f1(d.thresholdVms,'ms')}` : '─'],
+        ['閾値 A',        d.thresholdAV != null ? `${f1(d.thresholdAV,'V')} @ 0.4ms` : '─'],
+        ['閾値 V',        d.thresholdVV != null ? `${f1(d.thresholdVV,'V')} @ 0.4ms` : '─'],
+        ...(d.altThresholdMs != null ? [
+          ['閾値A（別PW）', `${d.altThresholdAV!=null?f1(d.altThresholdAV,'V'):'─'} @ ${f1(d.altThresholdMs,'ms')}`],
+          ['閾値V（別PW）', `${d.altThresholdVV!=null?f1(d.altThresholdVV,'V'):'─'} @ ${f1(d.altThresholdMs,'ms')}`],
+        ] : []),
         ['波高値 A',      f1(d.amplitudeA, 'mV')],
         ['波高値 V',      f1(d.amplitudeV, 'mV')],
         ['インピーダンス A', fmt(d.impedanceA, ' Ω')],
@@ -731,16 +735,18 @@ window.deletePatient = async function(id) {
 window.exportCSV = function() {
   if (!_allPatients.length) { alert('エクスポートするデータがありません'); return; }
   const tpFields = (prefix, d) => {
-    if (!d) return ['','','','','','','','','','','','','','','','',''];
+    if (!d) return ['','','','','','','','','','','','','','','','','','','',''];
     return [
       d.recordedAt||'', d.i2iA||'', d.i2iV||'',
       d.throughputA2V!=null?d.throughputA2V:'', d.throughputV2A!=null?d.throughputV2A:'',
-      d.thresholdAV!=null?d.thresholdAV:'', d.thresholdAms!=null?d.thresholdAms:'',
-      d.thresholdVV!=null?d.thresholdVV:'', d.thresholdVms!=null?d.thresholdVms:'',
+      d.thresholdAV!=null?d.thresholdAV:'', 0.4,
+      d.thresholdVV!=null?d.thresholdVV:'', 0.4,
       d.amplitudeA!=null?d.amplitudeA:'', d.amplitudeV!=null?d.amplitudeV:'',
       d.impedanceA!=null?d.impedanceA:'', d.impedanceV!=null?d.impedanceV:'',
       d.batteryA!=null?d.batteryA:'', d.batteryV!=null?d.batteryV:'',
       d.pacingRateA!=null?d.pacingRateA:'', d.pacingRateV!=null?d.pacingRateV:'',
+      d.altThresholdMs!=null?d.altThresholdMs:'',
+      d.altThresholdAV!=null?d.altThresholdAV:'', d.altThresholdVV!=null?d.altThresholdVV:'',
     ];
   };
   const tpHeaders = (prefix) => [
@@ -751,6 +757,7 @@ window.exportCSV = function() {
     `${prefix}_インピーダンスA_Ω`,`${prefix}_インピーダンスV_Ω`,
     `${prefix}_電池AR_年`,`${prefix}_電池VR_年`,
     `${prefix}_ペーシング率A_%`,`${prefix}_ペーシング率V_%`,
+    `${prefix}_別PW_ms`,`${prefix}_別PW閾値A_V`,`${prefix}_別PW閾値V_V`,
   ];
   const headers = [
     '#','施設','疾患','性別','年齢','MODE','AR_SN','VR_SN','ステータス',
