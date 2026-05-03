@@ -448,6 +448,7 @@ async function getAllPatients() {
 //  ★ 管理者パスワード
 // ════════════════════════════════════════
 const ADMIN_PW = 'AveirCJStudyadmin';
+const DELETE_PW = 'AveirCJStudyadmin_delete';
 
 // ════════════════════════════════════════
 //  Login
@@ -769,7 +770,7 @@ window.cancelDelete = function() {
 
 window.confirmDelete = async function() {
   const pw = document.getElementById('del-modal-pw').value;
-  if (pw !== ADMIN_PW) {
+  if (pw !== DELETE_PW) {
     document.getElementById('del-modal-err').classList.add('show');
     document.getElementById('del-modal-pw').value = '';
     document.getElementById('del-modal-pw').focus();
