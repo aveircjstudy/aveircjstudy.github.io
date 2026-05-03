@@ -356,16 +356,6 @@
     </button>
   </div>
 
-  <!-- ── Data Management ── -->
-  <div class="card">
-    <div class="card-title">⚙️ データ管理</div>
-    <p style="font-size:.85rem; color:var(--sub); margin-bottom:16px;">
-      以下の操作は取り消せません。実行前に必ずデータをご確認ください。
-    </p>
-    <button class="btn btn-red btn-full" onclick="clearAllData()">
-      🗑 全データを削除する（取り消し不可）
-    </button>
-  </div>
 
 </div>
 
@@ -950,19 +940,6 @@ function renderTimelineChart(ps) {
   }
 }
 
-window.clearAllData = async function() {
-  if (!confirm('全データを削除します。この操作は取り消せません。本当に実行しますか？')) return;
-  if (!confirm('本当に全データを完全に削除しますか？（最終確認）')) return;
-  try {
-    const snap = await getDocs(collection(db, 'patients'));
-    const promises = snap.docs.map(d => deleteDoc(d.ref));
-    await Promise.all(promises);
-    await renderAll();
-  } catch(e) {
-    alert('削除に失敗しました: ' + e.message);
-    console.error(e);
-  }
-};
 </script>
 </body>
 </html>
