@@ -64,6 +64,33 @@
     .login-err { color: var(--red); font-size: .82rem; font-weight: 700; margin-bottom: 10px; display: none; }
     .login-err.show { display: block; }
 
+    /* ── Delete confirm modal ── */
+    #del-modal-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,.45); z-index: 400;
+      align-items: center; justify-content: center;
+    }
+    #del-modal-overlay.show { display: flex; }
+    .del-modal-box {
+      background: #fff; border-radius: 16px;
+      padding: 32px 28px; width: 320px; text-align: center;
+      box-shadow: 0 12px 48px rgba(0,0,0,.3);
+    }
+    .del-modal-icon { font-size: 2.2rem; margin-bottom: 8px; }
+    .del-modal-title { font-size: 1rem; font-weight: 800; color: var(--red); margin-bottom: 4px; }
+    .del-modal-sub { font-size: .82rem; color: var(--text-sub); margin-bottom: 18px; }
+    .del-modal-box input {
+      width: 100%; background: #f4f6f9; border: 1.5px solid var(--border);
+      border-radius: 8px; color: var(--text); padding: 10px 14px;
+      font-size: 1rem; text-align: center; letter-spacing: 2px; margin-bottom: 10px;
+      box-sizing: border-box;
+    }
+    .del-modal-box input:focus { outline: none; border-color: var(--red); }
+    .del-modal-err { color: var(--red); font-size: .8rem; font-weight: 700; margin-bottom: 10px; display: none; }
+    .del-modal-err.show { display: block; }
+    .del-modal-btns { display: flex; gap: 10px; }
+    .del-modal-btns .btn { flex: 1; }
+
     /* ── Header ── */
     header {
       background: linear-gradient(90deg,#1a237e,#1565c0);
@@ -228,6 +255,22 @@
            onkeydown="if(event.key==='Enter')checkLogin()">
     <div class="login-err" id="login-err">パスワードが正しくありません</div>
     <button class="btn btn-blue btn-full" onclick="checkLogin()">ログイン</button>
+  </div>
+</div>
+
+<!-- Delete confirmation modal -->
+<div id="del-modal-overlay">
+  <div class="del-modal-box">
+    <div class="del-modal-icon">🗑</div>
+    <div class="del-modal-title">患者データを削除</div>
+    <div class="del-modal-sub" id="del-modal-sub">この操作は取り消せません</div>
+    <input type="password" id="del-modal-pw" placeholder="管理者パスワードを入力"
+           onkeydown="if(event.key==='Enter')confirmDelete()">
+    <div class="del-modal-err" id="del-modal-err">パスワードが正しくありません</div>
+    <div class="del-modal-btns">
+      <button class="btn" style="background:#f0f4f8;color:var(--text);" onclick="cancelDelete()">キャンセル</button>
+      <button class="btn btn-red" onclick="confirmDelete()">削除実行</button>
+    </div>
   </div>
 </div>
 
@@ -708,15 +751,39 @@ function buildDetailHTML(p) {
 // ════════════════════════════════════════
 //  Data management
 // ════════════════════════════════════════
-window.deletePatient = async function(id) {
-  if (!confirm(`#${id} のデータを削除します。よろしいですか？`)) return;
+let _deleteTargetId = null;
+
+window.deletePatient = function(id) {
+  _deleteTargetId = id;
+  document.getElementById('del-modal-sub').textContent = `患者 #${id} のデータを削除します。この操作は取り消せません。`;
+  document.getElementById('del-modal-pw').value = '';
+  document.getElementById('del-modal-err').classList.remove('show');
+  document.getElementById('del-modal-overlay').classList.add('show');
+  setTimeout(() => document.getElementById('del-modal-pw').focus(), 100);
+};
+
+window.cancelDelete = function() {
+  document.getElementById('del-modal-overlay').classList.remove('show');
+  _deleteTargetId = null;
+};
+
+window.confirmDelete = async function() {
+  const pw = document.getElementById('del-modal-pw').value;
+  if (pw !== ADMIN_PW) {
+    document.getElementById('del-modal-err').classList.add('show');
+    document.getElementById('del-modal-pw').value = '';
+    document.getElementById('del-modal-pw').focus();
+    return;
+  }
+  document.getElementById('del-modal-overlay').classList.remove('show');
   try {
-    await deleteDoc(doc(db, 'patients', String(id)));
+    await deleteDoc(doc(db, 'patients', String(_deleteTargetId)));
     await renderAll();
   } catch(e) {
     alert('削除に失敗しました: ' + e.message);
     console.error(e);
   }
+  _deleteTargetId = null;
 };
 
 // ════════════════════════════════════════
