@@ -492,8 +492,10 @@ const getStatus = p => {
 };
 
 function fmt(v, unit='')  { return v != null ? `${v}${unit}` : '─'; }
-// 小数点第1位固定（閾値・波高値・電池寿命に使用）
+// 小数点第1位固定（波高値・電池寿命に使用）
 function f1(v, unit='')  { return v != null ? `${parseFloat(v).toFixed(1)}${unit}` : '─'; }
+// 小数点第2位固定（閾値電圧に使用）
+function f2(v, unit='')  { return v != null ? `${parseFloat(v).toFixed(2)}${unit}` : '─'; }
 
 // ════════════════════════════════════════
 //  Cached patient data
@@ -729,11 +731,11 @@ function buildDetailHTML(p) {
         ['i2i レベル V',  fmt(d.i2iV)],
         ['スループット A2V', fmt(d.throughputA2V, '%')],
         ['スループット V2A', fmt(d.throughputV2A, '%')],
-        ['閾値 A',        d.thresholdAV != null ? `${f1(d.thresholdAV,'V')} @ 0.4ms` : '─'],
-        ['閾値 V',        d.thresholdVV != null ? `${f1(d.thresholdVV,'V')} @ 0.4ms` : '─'],
+        ['閾値 A',        d.thresholdAV != null ? `${f2(d.thresholdAV,'V')} @ 0.4ms` : '─'],
+        ['閾値 V',        d.thresholdVV != null ? `${f2(d.thresholdVV,'V')} @ 0.4ms` : '─'],
         ...(d.altThresholdMs != null ? [
-          ['閾値A（別PW）', `${d.altThresholdAV!=null?f1(d.altThresholdAV,'V'):'─'} @ ${f1(d.altThresholdMs,'ms')}`],
-          ['閾値V（別PW）', `${d.altThresholdVV!=null?f1(d.altThresholdVV,'V'):'─'} @ ${f1(d.altThresholdMs,'ms')}`],
+          ['閾値A（別PW）', `${d.altThresholdAV!=null?f2(d.altThresholdAV,'V'):'─'} @ ${f1(d.altThresholdMs,'ms')}`],
+          ['閾値V（別PW）', `${d.altThresholdVV!=null?f2(d.altThresholdVV,'V'):'─'} @ ${f1(d.altThresholdMs,'ms')}`],
         ] : []),
         ['波高値 A',      f1(d.amplitudeA, 'mV')],
         ['波高値 V',      f1(d.amplitudeV, 'mV')],

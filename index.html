@@ -1542,8 +1542,8 @@ function buildMeasureFields(containerId, inclBat) {
       <div class="av-grid three-col" style="grid-template-columns: auto 1fr 1fr;">
         <div></div><div class="av-col-label">心房（A）電圧</div><div class="av-col-label">心室（V）電圧</div>
         <div class="av-row-label">閾値@0.4ms</div>
-        <div class="input-unit"><input type="number" id="m-thr-av"  min="0" max="10" step="0.1" placeholder="1.5"><span class="unit">V</span></div>
-        <div class="input-unit"><input type="number" id="m-thr-vv"  min="0" max="10" step="0.1" placeholder="1.0"><span class="unit">V</span></div>
+        <div class="input-unit"><input type="number" id="m-thr-av"  min="0" max="10" step="0.01" placeholder="1.50"><span class="unit">V</span></div>
+        <div class="input-unit"><input type="number" id="m-thr-vv"  min="0" max="10" step="0.01" placeholder="1.00"><span class="unit">V</span></div>
       </div>
       <div id="m-alt-thr-add-row" style="margin-top:8px;">
         <button type="button" class="btn" style="font-size:.79rem;padding:5px 12px;background:#f0f7ff;color:var(--blue);border:1.5px dashed var(--blue);border-radius:6px;" onclick="addAltThr('${containerId}')">＋ 別パルス幅を追加</button>
@@ -1562,8 +1562,8 @@ function buildMeasureFields(containerId, inclBat) {
         <div class="av-grid three-col" style="grid-template-columns: auto 1fr 1fr;">
           <div></div><div class="av-col-label">心房（A）電圧</div><div class="av-col-label">心室（V）電圧</div>
           <div class="av-row-label">閾値@?ms</div>
-          <div class="input-unit"><input type="number" id="m-thr-alt-av" min="0" max="10" step="0.1" placeholder="2.5"><span class="unit">V</span></div>
-          <div class="input-unit"><input type="number" id="m-thr-alt-vv" min="0" max="10" step="0.1" placeholder="1.5"><span class="unit">V</span></div>
+          <div class="input-unit"><input type="number" id="m-thr-alt-av" min="0" max="10" step="0.01" placeholder="2.50"><span class="unit">V</span></div>
+          <div class="input-unit"><input type="number" id="m-thr-alt-vv" min="0" max="10" step="0.01" placeholder="1.50"><span class="unit">V</span></div>
         </div>
       </div>
     </div>
@@ -1740,8 +1740,10 @@ function validateMeasure(errId, inclBat, container) {
 // ═══════════════════════════════════════════════════
 //  Patient detail view
 // ═══════════════════════════════════════════════════
-// 小数点第1位固定フォーマット（閾値・波高値・電池に使用）
+// 小数点第1位固定フォーマット（波高値・電池に使用）
 function f1(v, u='') { return (v != null && v !== '') ? `${parseFloat(v).toFixed(1)}${u}` : '─'; }
+// 小数点第2位固定フォーマット（閾値電圧に使用）
+function f2(v, u='') { return (v != null && v !== '') ? `${parseFloat(v).toFixed(2)}${u}` : '─'; }
 // 整数フォーマット（i2i・スループット・Imp・ペーシング率）
 function fi(v, u='') { return (v != null && v !== '') ? `${v}${u}` : '─'; }
 
@@ -1764,10 +1766,10 @@ function buildPatientDetailTPHTML(p) {
     </div>`;
   };
 
-  const fmtThrA = (d) => d && d.thresholdAV!=null ? `${f1(d.thresholdAV,'V')}@0.4ms` : '─';
-  const fmtThrV = (d) => d && d.thresholdVV!=null ? `${f1(d.thresholdVV,'V')}@0.4ms` : '─';
-  const fmtAltA = (d) => d && d.altThresholdMs!=null ? `${d.altThresholdAV!=null?f1(d.altThresholdAV,'V'):'─'}@${f1(d.altThresholdMs,'ms')}` : '─';
-  const fmtAltV = (d) => d && d.altThresholdMs!=null ? `${d.altThresholdVV!=null?f1(d.altThresholdVV,'V'):'─'}@${f1(d.altThresholdMs,'ms')}` : '─';
+  const fmtThrA = (d) => d && d.thresholdAV!=null ? `${f2(d.thresholdAV,'V')}@0.4ms` : '─';
+  const fmtThrV = (d) => d && d.thresholdVV!=null ? `${f2(d.thresholdVV,'V')}@0.4ms` : '─';
+  const fmtAltA = (d) => d && d.altThresholdMs!=null ? `${d.altThresholdAV!=null?f2(d.altThresholdAV,'V'):'─'}@${f1(d.altThresholdMs,'ms')}` : '─';
+  const fmtAltV = (d) => d && d.altThresholdMs!=null ? `${d.altThresholdVV!=null?f2(d.altThresholdVV,'V'):'─'}@${f1(d.altThresholdMs,'ms')}` : '─';
 
   const rows = [
     row('記録日',       fi(dis?.recordedAt),               fi(out?.recordedAt),               fi(thr?.recordedAt)),
@@ -1860,11 +1862,11 @@ function buildConfirmHTML(patientInfo, measureData, inclBat) {
     ['記録日', d.recordedAt||'─'],
     ['i2i レベル A', fi(d.i2iA)], ['i2i レベル V', fi(d.i2iV)],
     ['スループット A2V', fi(d.throughputA2V,'%')], ['スループット V2A', fi(d.throughputV2A,'%')],
-    ['閾値 A', d.thresholdAV!=null ? `${f1(d.thresholdAV,'V')} @ 0.4ms` : '─'],
-    ['閾値 V', d.thresholdVV!=null ? `${f1(d.thresholdVV,'V')} @ 0.4ms` : '─'],
+    ['閾値 A', d.thresholdAV!=null ? `${f2(d.thresholdAV,'V')} @ 0.4ms` : '─'],
+    ['閾値 V', d.thresholdVV!=null ? `${f2(d.thresholdVV,'V')} @ 0.4ms` : '─'],
     ...(d.altThresholdMs!=null ? [
-      ['閾値A（別PW）', `${d.altThresholdAV!=null?f1(d.altThresholdAV,'V'):'─'} @ ${f1(d.altThresholdMs,'ms')}`],
-      ['閾値V（別PW）', `${d.altThresholdVV!=null?f1(d.altThresholdVV,'V'):'─'} @ ${f1(d.altThresholdMs,'ms')}`],
+      ['閾値A（別PW）', `${d.altThresholdAV!=null?f2(d.altThresholdAV,'V'):'─'} @ ${f1(d.altThresholdMs,'ms')}`],
+      ['閾値V（別PW）', `${d.altThresholdVV!=null?f2(d.altThresholdVV,'V'):'─'} @ ${f1(d.altThresholdMs,'ms')}`],
     ] : []),
     ['波高値 A', f1(d.amplitudeA,'mV')], ['波高値 V', f1(d.amplitudeV,'mV')],
     ['インピーダンス A', fi(d.impedanceA,' Ω')], ['インピーダンス V', fi(d.impedanceV,' Ω')],
