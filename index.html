@@ -1132,7 +1132,7 @@
 //  Firebase
 // ═══════════════════════════════════════════════════
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.12.0/firebase-app.js";
-import { getFirestore, collection, doc, getDoc, setDoc, updateDoc, getDocs, query, orderBy, runTransaction, onSnapshot }
+import { getFirestore, collection, doc, getDoc, setDoc, updateDoc, getDocs, query, orderBy, runTransaction, onSnapshot, arrayUnion }
   from "https://www.gstatic.com/firebasejs/12.12.0/firebase-firestore.js";
 import { getAuth, signInAnonymously }
   from "https://www.gstatic.com/firebasejs/12.12.0/firebase-auth.js";
@@ -1187,14 +1187,31 @@ async function getNextPatientId() {
   });
   return newId;
 }
-async function loadFacilityPW() {
-  const snap = await getDocs(collection(db, 'facilities'));
-  const r = {};
-  snap.docs.forEach(d => { r[d.id] = d.data().password; });
-  return r;
+// 施設名だけを保持する公開インデックス（ハッシュは含まない）からドロップダウン用の名前一覧を取得
+async function loadFacilityNames() {
+  const snap = await getDoc(doc(db, 'meta', 'facilityIndex'));
+  let names = (snap.exists() && Array.isArray(snap.data().names)) ? snap.data().names : [];
+  // 移行用フォールバック：インデックスが空のときだけ、旧来のコレクション一覧から名前を補完してインデックスに登録する。
+  // （Firestoreルールで list を禁止した後は getDocs が失敗するが、その時点では既にインデックスが構築済み）
+  if (!names.length) {
+    try {
+      const colSnap = await getDocs(collection(db, 'facilities'));
+      const legacy = colSnap.docs.map(d => d.id);
+      if (legacy.length) {
+        await setDoc(doc(db, 'meta', 'facilityIndex'), { names: arrayUnion(...legacy) }, { merge: true });
+        names = legacy;
+      }
+    } catch (e) {
+      // list が禁止済みの場合はここに来る。インデックス（空）をそのまま使う。
+      console.warn('facility list fallback skipped:', e?.code || e);
+    }
+  }
+  return names.slice().sort((a, b) => a.localeCompare(b, 'ja'));
 }
 async function saveFacility(name, password) {
   await setDoc(doc(db, 'facilities', name), { password, createdAt: new Date().toISOString() });
+  // 名前のみを公開インデックスに追記（ドロップダウン表示用・ハッシュは含めない）
+  await setDoc(doc(db, 'meta', 'facilityIndex'), { names: arrayUnion(name) }, { merge: true });
 }
 
 // ═══════════════════════════════════════════════════
@@ -1226,8 +1243,7 @@ window.lsShowNew = function() {
 
 window.lsShowExist = async function() {
   await authReady;
-  const pws = await loadFacilityPW();
-  const registered = Object.keys(pws);
+  const registered = await loadFacilityNames();
   if (!registered.length) {
     const err = document.getElementById('login-err');
     err.textContent = '⚠ 登録済みの施設がありません。「初回施設登録」を行ってください。';
@@ -1345,8 +1361,7 @@ window.doLogout = function() {
 // ═══════════════════════════════════════════════════
 window.lsShowReset = async function() {
   await authReady;
-  const pws = await loadFacilityPW();
-  const registered = Object.keys(pws);
+  const registered = await loadFacilityNames();
   if (!registered.length) {
     const err = document.getElementById('login-err');
     err.textContent = '⚠ 登録済みの施設がありません。'; err.classList.add('show');
